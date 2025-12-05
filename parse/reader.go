@@ -1,0 +1,292 @@
+// Package parse provides parsing capabilities for SPDX 3.0 JSON-LD documents.
+//
+// The package supports reading SPDX documents from files or byte slices,
+// parsing them into typed Go structures based on the SPDX 3.0.1 model.
+//
+// Example usage:
+//
+//	reader := parse.NewReader()
+//	doc, err := reader.ReadFile("document.spdx.json")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Document: %s\n", doc.GetName())
+package parse
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+
+	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
+	"github.com/interlynk-io/spdx-zen/parse/internal/jsonld"
+	"github.com/interlynk-io/spdx-zen/parse/internal/parser"
+)
+
+// Reader provides JSON-LD parsing capabilities for SPDX 3.0 documents.
+type Reader struct {
+	processor *jsonld.Processor
+	parser    *parser.ElementParser
+	fileRead  func(string) ([]byte, error)
+}
+
+// Option configures a Reader.
+type Option interface {
+	apply(*Reader)
+}
+
+type optionFunc func(*Reader)
+
+func (f optionFunc) apply(r *Reader) { f(r) }
+
+// WithDocumentLoader sets a custom JSON-LD document loader.
+// This is useful for testing or for providing custom context resolution.
+func WithDocumentLoader(loader jsonld.DocumentLoader) Option {
+	return optionFunc(func(r *Reader) {
+		r.processor = jsonld.NewProcessor(loader)
+	})
+}
+
+// WithFileReader sets a custom file reader function.
+// This is useful for testing or for reading from custom sources.
+func WithFileReader(readFn func(string) ([]byte, error)) Option {
+	return optionFunc(func(r *Reader) {
+		r.fileRead = readFn
+	})
+}
+
+// NewReader creates a new SPDX JSON-LD reader with the given options.
+func NewReader(opts ...Option) *Reader {
+	r := &Reader{
+		processor: jsonld.NewProcessor(jsonld.NewFallbackLoader()),
+		parser:    parser.NewElementParser(),
+		fileRead:  os.ReadFile,
+	}
+
+	for _, opt := range opts {
+		opt.apply(r)
+	}
+
+	return r
+}
+
+// ReadFile reads and parses an SPDX JSON-LD file from the given path.
+func (r *Reader) ReadFile(filePath string) (*Document, error) {
+	data, err := r.fileRead(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading file: %w", err)
+	}
+
+	return r.Read(data)
+}
+
+// FromReader reads and parses an SPDX JSON-LD document from an io.Reader.
+func (r *Reader) FromReader(reader io.Reader) (*Document, error) {
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("reading input: %w", err)
+	}
+
+	return r.Read(data)
+}
+
+// Read parses SPDX JSON-LD data from bytes.
+func (r *Reader) Read(data []byte) (*Document, error) {
+	var rawDoc interface{}
+	if err := json.Unmarshal(data, &rawDoc); err != nil {
+		return nil, fmt.Errorf("parsing JSON: %w", err)
+	}
+
+	return r.parse(rawDoc)
+}
+
+// parse processes the raw JSON-LD document.
+func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
+	docMap, ok := rawDoc.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("document is not a JSON object")
+	}
+
+	doc := &Document{
+		ElementsByID:           make(map[string]interface{}),
+		RelationshipsFromIndex: make(map[string][]*spdx.Relationship),
+		RelationshipsToIndex:   make(map[string][]*spdx.Relationship),
+		PackagesByID:           make(map[string]*spdx.Package),
+		FilesByID:              make(map[string]*spdx.File),
+		AgentsByID:             make(map[string]*spdx.Agent),
+		ToolsByID:              make(map[string]*spdx.Tool),
+		LicensesByID:           make(map[string]*spdx.AnyLicenseInfo),
+	}
+
+	// Extract @context
+	if ctx, ok := docMap["@context"]; ok {
+		doc.Context = r.parseContext(ctx)
+	}
+
+	// Extract and parse @graph
+	graph, ok := docMap["@graph"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("document does not contain @graph array")
+	}
+
+	// First pass: categorize and count elements
+	for _, elem := range graph {
+		elemMap, ok := elem.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		elemType := r.getElementType(elemMap)
+
+		// Get SPDX ID if available
+		if spdxID, ok := elemMap["spdxId"].(string); ok {
+			doc.ElementsByID[spdxID] = elemMap
+		}
+
+		// Parse and categorize by type
+		r.categorizeElement(doc, elemMap, elemType)
+	}
+
+	// Build relationship indexes for O(1) lookups
+	for _, rel := range doc.Relationships {
+		fromID := rel.From.GetSpdxID()
+		doc.RelationshipsFromIndex[fromID] = append(doc.RelationshipsFromIndex[fromID], rel)
+		for _, to := range rel.To {
+			toID := to.GetSpdxID()
+			doc.RelationshipsToIndex[toID] = append(doc.RelationshipsToIndex[toID], rel)
+		}
+	}
+
+	return doc, nil
+}
+
+// parseContext extracts context URLs from the @context field.
+func (r *Reader) parseContext(ctx interface{}) []string {
+	var contexts []string
+
+	switch c := ctx.(type) {
+	case string:
+		contexts = append(contexts, c)
+	case []interface{}:
+		for _, item := range c {
+			if s, ok := item.(string); ok {
+				contexts = append(contexts, s)
+			}
+		}
+	}
+
+	return contexts
+}
+
+// getElementType extracts the element type from a map.
+func (r *Reader) getElementType(elemMap map[string]interface{}) ElementType {
+	if typeVal, ok := elemMap["type"].(string); ok {
+		return ElementType(typeVal)
+	}
+	return ""
+}
+
+// categorizeElement parses and categorizes an element based on its type.
+func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}, elemType ElementType) {
+	switch elemType {
+	case TypeSpdxDocument:
+		doc.SpdxDocument = r.parser.ParseSpdxDocument(elemMap)
+
+	case TypeSoftwarePackage:
+		pkg := r.parser.ParsePackage(elemMap)
+		doc.Packages = append(doc.Packages, pkg)
+		if pkg.SpdxID != "" {
+			doc.PackagesByID[pkg.SpdxID] = pkg
+		}
+
+	case TypeSoftwareFile:
+		file := r.parser.ParseFile(elemMap)
+		doc.Files = append(doc.Files, file)
+		if file.SpdxID != "" {
+			doc.FilesByID[file.SpdxID] = file
+		}
+
+	case TypeSoftwareSnippet:
+		doc.Snippets = append(doc.Snippets, r.parser.ParseSnippet(elemMap))
+
+	case TypeRelationship:
+		doc.Relationships = append(doc.Relationships, r.parser.ParseRelationship(elemMap))
+
+	case TypeAnnotation:
+		doc.Annotations = append(doc.Annotations, r.parser.ParseAnnotation(elemMap))
+
+	case TypeExternalMap:
+		doc.ExternalMaps = append(doc.ExternalMaps, r.parser.ParseExternalMap(elemMap))
+
+	case TypeCreationInfo:
+		doc.CreationInfo = r.parser.ParseCreationInfo(elemMap)
+
+	case TypePerson, TypeOrganization, TypeSoftwareAgent:
+		agent := r.parser.ParseAgent(elemMap)
+		doc.Agents = append(doc.Agents, agent)
+		if agent.SpdxID != "" {
+			doc.AgentsByID[agent.SpdxID] = agent
+		}
+
+	case TypeTool:
+		tool := r.parser.ParseTool(elemMap)
+		doc.Tools = append(doc.Tools, tool)
+		if tool.SpdxID != "" {
+			doc.ToolsByID[tool.SpdxID] = tool
+		}
+
+	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense, 
+		TypeLicenseExpression, TypeSimpleLicensingExpression:
+		lic := r.parser.ParseLicenseInfo(elemMap)
+		doc.Licenses = append(doc.Licenses, lic)
+		if lic.SpdxID != "" {
+			doc.LicensesByID[lic.SpdxID] = lic
+		}
+	}
+}
+
+// Expand uses JSON-LD expansion on the document.
+func (r *Reader) Expand(data []byte) ([]interface{}, error) {
+	var rawDoc interface{}
+	if err := json.Unmarshal(data, &rawDoc); err != nil {
+		return nil, fmt.Errorf("parsing JSON: %w", err)
+	}
+
+	expanded, err := r.processor.Expand(rawDoc)
+	if err != nil {
+		return nil, fmt.Errorf("expanding JSON-LD: %w", err)
+	}
+
+	return expanded, nil
+}
+
+// Flatten uses JSON-LD flattening on the document.
+func (r *Reader) Flatten(data []byte) (interface{}, error) {
+	var rawDoc interface{}
+	if err := json.Unmarshal(data, &rawDoc); err != nil {
+		return nil, fmt.Errorf("parsing JSON: %w", err)
+	}
+
+	flattened, err := r.processor.Flatten(rawDoc)
+	if err != nil {
+		return nil, fmt.Errorf("flattening JSON-LD: %w", err)
+	}
+
+	return flattened, nil
+}
+
+// Compact uses JSON-LD compaction on the document.
+func (r *Reader) Compact(data []byte, context interface{}) (interface{}, error) {
+	var rawDoc interface{}
+	if err := json.Unmarshal(data, &rawDoc); err != nil {
+		return nil, fmt.Errorf("parsing JSON: %w", err)
+	}
+
+	compacted, err := r.processor.Compact(rawDoc, context)
+	if err != nil {
+		return nil, fmt.Errorf("compacting JSON-LD: %w", err)
+	}
+
+	return compacted, nil
+}

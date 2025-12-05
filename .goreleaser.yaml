@@ -1,0 +1,144 @@
+# Copyright 2025 Interlynk Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# GoReleaser configuration for spdx-zen
+# Documentation: https://goreleaser.com
+
+version: 2
+
+project_name: spdx-zen
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: spdx-gen
+    main: ./cmd/spdx-gen
+    binary: spdx-gen
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Other Changes'
+      order: 999
+
+release:
+  github:
+    owner: interlynk-io
+    name: spdx-zen
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## spdx-zen {{ .Tag }}
+
+    SPDX 3.0 Go Library - Build, parse, and generate SPDX 3.0.1+ documents.
+  footer: |
+    **Full Changelog**: https://github.com/interlynk-io/spdx-zen/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ---
+
+    ### Installation
+
+    ```bash
+    go get github.com/interlynk-io/spdx-zen@{{ .Tag }}
+    ```
+
+    Or download the pre-built `spdx-gen` binary from the assets below.
+
+# Homebrew tap (optional - uncomment when ready)
+# brews:
+#   - repository:
+#       owner: interlynk-io
+#       name: homebrew-tap
+#     name: spdx-zen
+#     description: "SPDX 3.0 Go Library"
+#     homepage: "https://github.com/interlynk-io/spdx-zen"
+#     license: "Apache-2.0"
+#     install: |
+#       bin.install "spdx-gen"
+
+# Docker images (optional - uncomment when ready)
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/interlynk-io/spdx-zen:{{ .Tag }}"
+#       - "ghcr.io/interlynk-io/spdx-zen:latest"
+#     dockerfile: Dockerfile
+#     build_flag_templates:
+#       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+#       - "--label=org.opencontainers.image.version={{ .Version }}"
+#       - "--label=org.opencontainers.image.source={{ .GitURL }}"
+#       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+
+# Announce (optional - uncomment when ready)
+# announce:
+#   slack:
+#     enabled: true
+#     channel: '#releases'
