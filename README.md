@@ -1,4 +1,4 @@
-# SPDX Zen
+# spdx-zen
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/interlynk-io/spdx-zen)](https://goreportcard.com/report/github.com/interlynk-io/spdx-zen)
 [![Go Reference](https://pkg.go.dev/badge/github.com/interlynk-io/spdx-zen.svg)](https://pkg.go.dev/github.com/interlynk-io/spdx-zen)
