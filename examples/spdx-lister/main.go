@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"os"
 
+	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
 	"github.com/interlynk-io/spdx-zen/parse"
 )
 
 func main() {
 	showFiles := flag.Bool("show-files", false, "Show detailed file information")
+	agentType := flag.String("filter-agent", "", "Filter by agent type: organization, person, or software")
 	flag.Parse()
 
 	var doc *parse.Document
@@ -50,7 +52,11 @@ func main() {
 		}
 	}
 
-	printDocumentInfo(doc, *showFiles)
+	if *agentType != "" {
+		printAgentFilteredInfo(doc, *agentType)
+	} else {
+		printDocumentInfo(doc, *showFiles)
+	}
 }
 
 func printDocumentInfo(doc *parse.Document, showFiles bool) {
@@ -161,6 +167,55 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 			}
 			if pkg.PrimaryPurpose != "" {
 				fmt.Printf("      Purpose: %s\n", pkg.PrimaryPurpose)
+			}
+			// Display CreatedBy agents
+			if len(pkg.CreationInfo.CreatedBy) > 0 {
+				fmt.Print("      Created By: ")
+				for i, agent := range pkg.CreationInfo.CreatedBy {
+					if i > 0 {
+						fmt.Print(", ")
+					}
+					// Resolve agent reference to get the actual name
+					if agentObj := doc.GetAgentByID(agent.SpdxID); agentObj != nil && agentObj.Name != "" {
+						fmt.Print(agentObj.Name)
+					} else if agent.Name != "" {
+						fmt.Print(agent.Name)
+					} else {
+						fmt.Print(agent.SpdxID)
+					}
+				}
+				fmt.Println()
+			}
+			// Display OriginatedBy agents
+			if len(pkg.OriginatedBy) > 0 {
+				fmt.Print("      Originated By: ")
+				for i, agent := range pkg.OriginatedBy {
+					if i > 0 {
+						fmt.Print(", ")
+					}
+					// Resolve agent reference to get the actual name
+					if agentObj := doc.GetAgentByID(agent.SpdxID); agentObj != nil && agentObj.Name != "" {
+						fmt.Print(agentObj.Name)
+					} else if agent.Name != "" {
+						fmt.Print(agent.Name)
+					} else {
+						fmt.Print(agent.SpdxID)
+					}
+				}
+				fmt.Println()
+			}
+			// Display SuppliedBy agent
+			if pkg.SuppliedBy != nil {
+				fmt.Print("      Supplied By: ")
+				// Resolve agent reference to get the actual name
+				if agentObj := doc.GetAgentByID(pkg.SuppliedBy.SpdxID); agentObj != nil && agentObj.Name != "" {
+					fmt.Print(agentObj.Name)
+				} else if pkg.SuppliedBy.Name != "" {
+					fmt.Print(pkg.SuppliedBy.Name)
+				} else {
+					fmt.Print(pkg.SuppliedBy.SpdxID)
+				}
+				fmt.Println()
 			}
 			// Display dependencies using parse interface
 			deps := doc.GetDependenciesFor(pkg.SpdxID)
@@ -404,4 +459,322 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 		}
 		fmt.Println()
 	}
+}
+
+func printAgentFilteredInfo(doc *parse.Document, agentType string) {
+	fmt.Printf("=== Agent Filter: %s ===\n", agentType)
+	fmt.Println()
+
+	// Collect agent IDs based on type
+	var agentIDs []string
+	var agents []interface{}
+
+	switch agentType {
+	case "organization":
+		for _, org := range doc.Organizations {
+			agentIDs = append(agentIDs, org.SpdxID)
+			agents = append(agents, org)
+		}
+	case "person":
+		for _, person := range doc.Persons {
+			agentIDs = append(agentIDs, person.SpdxID)
+			agents = append(agents, person)
+		}
+	case "software":
+		for _, sa := range doc.SoftwareAgents {
+			agentIDs = append(agentIDs, sa.SpdxID)
+			agents = append(agents, sa)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "Invalid agent type: %s. Use 'organization', 'person', or 'software'\n", agentType)
+		os.Exit(1)
+	}
+
+	if len(agentIDs) == 0 {
+		fmt.Printf("No agents of type '%s' found in the document.\n", agentType)
+		return
+	}
+
+	// Display the agents
+	fmt.Printf("Found %d %s agent(s):\n", len(agents), agentType)
+	for _, agent := range agents {
+		switch a := agent.(type) {
+		case *spdx.Organization:
+			fmt.Printf("  - %s (ID: %s)\n", a.Name, a.SpdxID)
+		case *spdx.Person:
+			fmt.Printf("  - %s (ID: %s)\n", a.Name, a.SpdxID)
+		case *spdx.SoftwareAgent:
+			fmt.Printf("  - %s (ID: %s)\n", a.Name, a.SpdxID)
+		}
+	}
+	fmt.Println()
+
+	// Find elements associated with these agents
+	fmt.Println("Associated Elements:")
+	fmt.Println()
+
+	for _, agentID := range agentIDs {
+		agentName := getAgentName(doc, agentID, agentType)
+		fmt.Printf("Agent: %s (ID: %s)\n", agentName, agentID)
+
+		// Check document creation
+		if doc.CreationInfo != nil {
+			for _, creatorRef := range doc.CreationInfo.CreatedBy {
+				if creatorRef.SpdxID == agentID {
+					fmt.Printf("  - Created Document: %s\n", getElementInfo(doc, doc.SpdxDocument.SpdxID))
+					break
+				}
+			}
+		}
+
+		// Find all elements created by this agent
+		createdElements := findElementsCreatedByAgent(doc, agentID)
+		if len(createdElements) > 0 {
+			fmt.Println("  - Created Elements:")
+			for _, elemID := range createdElements {
+				fmt.Printf("    - %s\n", getElementInfo(doc, elemID))
+			}
+		}
+
+		// Check relationships where agent is involved
+		var relatedElements []string
+		relationshipTypes := make(map[string][]string)
+
+		for _, rel := range doc.Relationships {
+			if rel.From.SpdxID == agentID {
+				for _, to := range rel.To {
+					relatedElements = append(relatedElements, to.SpdxID)
+					relationshipTypes[string(rel.RelationshipType)] = append(relationshipTypes[string(rel.RelationshipType)], to.SpdxID)
+				}
+			}
+			for _, to := range rel.To {
+				if to.SpdxID == agentID {
+					relatedElements = append(relatedElements, rel.From.SpdxID)
+					relType := "(reverse) " + string(rel.RelationshipType)
+					relationshipTypes[relType] = append(relationshipTypes[relType], rel.From.SpdxID)
+				}
+			}
+		}
+
+		if len(relatedElements) > 0 {
+			fmt.Println("  - Involved in Relationships:")
+			for relType, elements := range relationshipTypes {
+				fmt.Printf("    %s:\n", relType)
+				for _, elemID := range elements {
+					elemInfo := getElementInfo(doc, elemID)
+					fmt.Printf("      - %s\n", elemInfo)
+				}
+			}
+		}
+
+		// Check annotations made by these agents
+		var annotatedElements []string
+		for _, ann := range doc.Annotations {
+			for _, creator := range ann.CreationInfo.CreatedBy {
+				if creator.SpdxID == agentID {
+					annotatedElements = append(annotatedElements, ann.Subject.SpdxID)
+					break
+				}
+			}
+		}
+
+		if len(annotatedElements) > 0 {
+			fmt.Println("  - Authored Annotations:")
+			for _, elemID := range annotatedElements {
+				elemInfo := getElementInfo(doc, elemID)
+				fmt.Printf("    - Annotated: %s\n", elemInfo)
+			}
+		}
+
+		// Check packages associated with these agents (OriginatedBy, SuppliedBy)
+		pkgs := findPackagesByAgent(doc, agentID)
+		if len(pkgs) > 0 {
+			fmt.Println("  - Associated with Packages:")
+			for _, pkg := range pkgs {
+				pkgInfo := getElementInfo(doc, pkg.SpdxID)
+				fmt.Printf("    - %s\n", pkgInfo)
+			}
+		}
+		fmt.Println()
+	}
+}
+
+func findElementsCreatedByAgent(doc *parse.Document, agentID string) []string {
+	var elementIDs []string
+
+	// Helper function to check creation info
+	isCreatedBy := func(ci *spdx.CreationInfo) bool {
+		if ci == nil {
+			return false
+		}
+		for _, creator := range ci.CreatedBy {
+			if creator.SpdxID == agentID {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, pkg := range doc.Packages {
+		if isCreatedBy(&pkg.CreationInfo) {
+			elementIDs = append(elementIDs, pkg.SpdxID)
+		}
+	}
+	for _, file := range doc.Files {
+		if isCreatedBy(&file.CreationInfo) {
+			elementIDs = append(elementIDs, file.SpdxID)
+		}
+	}
+	for _, snippet := range doc.Snippets {
+		if isCreatedBy(&snippet.CreationInfo) {
+			elementIDs = append(elementIDs, snippet.SpdxID)
+		}
+	}
+	for _, rel := range doc.Relationships {
+		if isCreatedBy(&rel.CreationInfo) {
+			elementIDs = append(elementIDs, rel.SpdxID)
+		}
+	}
+	// Annotations are checked separately in printAgentFilteredInfo to show what they annotated
+	for _, tool := range doc.Tools {
+		if isCreatedBy(&tool.CreationInfo) {
+			elementIDs = append(elementIDs, tool.SpdxID)
+		}
+	}
+	for _, ie := range doc.IndividualElements {
+		if isCreatedBy(&ie.CreationInfo) {
+			elementIDs = append(elementIDs, ie.SpdxID)
+		}
+	}
+	for _, ili := range doc.IndividualLicensingInfos {
+		if isCreatedBy(&ili.CreationInfo) {
+			elementIDs = append(elementIDs, ili.SpdxID)
+		}
+	}
+
+	return elementIDs
+}
+
+func findPackagesByAgent(doc *parse.Document, agentID string) []*spdx.Package {
+	var foundPackages []*spdx.Package
+	processed := make(map[string]bool)
+
+	for _, pkg := range doc.Packages {
+		// Check OriginatedBy
+		for _, originator := range pkg.OriginatedBy {
+			if originator.SpdxID == agentID {
+				if !processed[pkg.SpdxID] {
+					foundPackages = append(foundPackages, pkg)
+					processed[pkg.SpdxID] = true
+				}
+				break
+			}
+		}
+
+		// Check SuppliedBy
+		if pkg.SuppliedBy != nil && pkg.SuppliedBy.SpdxID == agentID {
+			if !processed[pkg.SpdxID] {
+				foundPackages = append(foundPackages, pkg)
+				processed[pkg.SpdxID] = true
+			}
+		}
+	}
+
+	return foundPackages
+}
+
+
+func getAgentName(doc *parse.Document, agentID string, agentType string) string {
+	switch agentType {
+	case "organization":
+		for _, org := range doc.Organizations {
+			if org.SpdxID == agentID {
+				return org.Name
+			}
+		}
+	case "person":
+		for _, person := range doc.Persons {
+			if person.SpdxID == agentID {
+				return person.Name
+			}
+		}
+	case "software":
+		for _, sa := range doc.SoftwareAgents {
+			if sa.SpdxID == agentID {
+				return sa.Name
+			}
+		}
+	}
+	return agentID
+}
+
+func getElementInfo(doc *parse.Document, elemID string) string {
+	// Check packages
+	for _, pkg := range doc.Packages {
+		if pkg.SpdxID == elemID {
+			if pkg.PackageVersion != "" {
+				return fmt.Sprintf("%s@%s (Package, ID: %s)", pkg.Name, pkg.PackageVersion, elemID)
+			}
+			return fmt.Sprintf("%s (Package, ID: %s)", pkg.Name, elemID)
+		}
+	}
+
+	// Check files
+	for _, file := range doc.Files {
+		if file.SpdxID == elemID {
+			return fmt.Sprintf("%s (File, ID: %s)", file.Name, elemID)
+		}
+	}
+
+	// Check snippets
+	for _, snippet := range doc.Snippets {
+		if snippet.SpdxID == elemID {
+			return fmt.Sprintf("%s (Snippet, ID: %s)", snippet.Name, elemID)
+		}
+	}
+
+	// Check tools
+	for _, tool := range doc.Tools {
+		if tool.SpdxID == elemID {
+			return fmt.Sprintf("%s (Tool, ID: %s)", tool.Name, elemID)
+		}
+	}
+
+	// Check agents
+	for _, org := range doc.Organizations {
+		if org.SpdxID == elemID {
+			return fmt.Sprintf("%s (Organization, ID: %s)", org.Name, elemID)
+		}
+	}
+	for _, person := range doc.Persons {
+		if person.SpdxID == elemID {
+			return fmt.Sprintf("%s (Person, ID: %s)", person.Name, elemID)
+		}
+	}
+	for _, sa := range doc.SoftwareAgents {
+		if sa.SpdxID == elemID {
+			return fmt.Sprintf("%s (SoftwareAgent, ID: %s)", sa.Name, elemID)
+		}
+	}
+
+	// Check licenses
+	for _, lic := range doc.Licenses {
+		if lic.SpdxID == elemID {
+			return fmt.Sprintf("%s (License, ID: %s)", lic.Name, elemID)
+		}
+	}
+
+	// Check individual elements
+	for _, ie := range doc.IndividualElements {
+		if ie.SpdxID == elemID {
+			return fmt.Sprintf("%s (IndividualElement, ID: %s)", ie.Name, elemID)
+		}
+	}
+
+	// Check document itself
+	if doc.SpdxDocument != nil && doc.SpdxDocument.SpdxID == elemID {
+		return fmt.Sprintf("%s (Document, ID: %s)", doc.SpdxDocument.Name, elemID)
+	}
+
+	return fmt.Sprintf("ID: %s", elemID)
 }

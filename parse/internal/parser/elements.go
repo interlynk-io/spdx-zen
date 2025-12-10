@@ -104,8 +104,12 @@ func (p *ElementParser) ParseArtifact(elemMap map[string]interface{}) *spdx.Arti
 	}
 
 	// Parse suppliedBy if present
-	if sb := p.h.GetMap(elemMap, "suppliedBy"); sb != nil {
-		artifact.SuppliedBy = p.ParseAgent(sb)
+	if sb, ok := elemMap["suppliedBy"]; ok {
+		if sbMap, ok := sb.(map[string]interface{}); ok {
+			artifact.SuppliedBy = p.ParseAgent(sbMap)
+		} else if sbStr, ok := sb.(string); ok {
+			artifact.SuppliedBy = &spdx.Agent{Element: spdx.Element{SpdxID: sbStr}}
+		}
 	}
 
 	// Parse supportLevel if present
@@ -121,6 +125,9 @@ func (p *ElementParser) ParseArtifact(elemMap map[string]interface{}) *spdx.Arti
 		for _, v := range vu {
 			if vMap, ok := v.(map[string]interface{}); ok {
 				artifact.OriginatedBy = append(artifact.OriginatedBy, *p.ParseAgent(vMap))
+			} else if vStr, ok := v.(string); ok {
+				agent := spdx.Agent{Element: spdx.Element{SpdxID: vStr}}
+				artifact.OriginatedBy = append(artifact.OriginatedBy, agent)
 			}
 		}
 	}
