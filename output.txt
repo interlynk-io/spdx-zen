@@ -26,6 +26,8 @@ Summary:
   SoftwareAgents:0
   Tools:         1
   Licenses:      1
+  IndividualElements: 0
+  IndividualLicensingInfos: 0
 
 Packages:
   - github.com/inconshreveable/mousetrap
@@ -331,11 +333,11 @@ Packages:
         Declared: NOASSERTION
 
 Relationship Types:
-  describes: 5
   hasConcludedLicense: 568
   hasDeclaredLicense: 569
   dependsOn: 42
   hasPrerequisite: 1
+  describes: 5
 
 Agents:
   - [Organization] NOASSERTION

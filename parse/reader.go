@@ -251,8 +251,15 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 		if tool.SpdxID != "" {
 			doc.ToolsByID[tool.SpdxID] = tool
 		}
+	case TypeIndividualElement:
+		ie := r.parser.ParseIndividualElement(elemMap)
+		doc.IndividualElements = append(doc.IndividualElements, ie)
 
-	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense, 
+	case TypeIndividualLicensingInfo:
+		ili := r.parser.ParseIndividualLicensingInfo(elemMap)
+		doc.IndividualLicensingInfos = append(doc.IndividualLicensingInfos, ili)
+
+	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense,
 		TypeLicenseExpression, TypeSimpleLicensingExpression:
 		lic := r.parser.ParseLicenseInfo(elemMap)
 		doc.Licenses = append(doc.Licenses, lic)

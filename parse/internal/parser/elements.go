@@ -179,6 +179,22 @@ func (p *ElementParser) ParseTool(elemMap map[string]interface{}) *spdx.Tool {
 	}
 }
 
+// ParseIndividualElement parses an individual element from a JSON map.
+func (p *ElementParser) ParseIndividualElement(elemMap map[string]interface{}) *spdx.IndividualElement {
+	return &spdx.IndividualElement{
+		Element: p.ParseElement(elemMap),
+	}
+}
+
+// ParseIndividualLicensingInfo parses individual licensing info from a JSON map.
+func (p *ElementParser) ParseIndividualLicensingInfo(elemMap map[string]interface{}) *spdx.IndividualLicensingInfo {
+	return &spdx.IndividualLicensingInfo{
+		AnyLicenseInfo: spdx.AnyLicenseInfo{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
 // ParseLicenseInfo parses license information from a JSON map.
 func (p *ElementParser) ParseLicenseInfo(elemMap map[string]interface{}) *spdx.AnyLicenseInfo {
 	if elemMap == nil {

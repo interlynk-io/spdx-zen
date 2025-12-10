@@ -26,6 +26,7 @@ const (
 	TypePositiveIntegerRange    ElementType = "PositiveIntegerRange"
 	TypeIntegrityMethod         ElementType = "IntegrityMethod"
 	TypePackageVerificationCode ElementType = "PackageVerificationCode"
+	TypeIndividualElement       ElementType = "IndividualElement"
 )
 
 // Software-related element types.
@@ -49,6 +50,7 @@ const (
 	TypeDisjunctiveLicenseSet      ElementType = "DisjunctiveLicenseSet"
 	TypeWithAdditionOperator       ElementType = "WithAdditionOperator"
 	TypeLicenseAddition            ElementType = "LicenseAddition"
+	TypeIndividualLicensingInfo    ElementType = "IndividualLicensingInfo"
 )
 
 // Security-related element types.

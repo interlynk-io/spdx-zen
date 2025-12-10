@@ -21,6 +21,8 @@ type Document struct {
 	SoftwareAgents []*spdx.SoftwareAgent
 	Tools         []*spdx.Tool
 	Licenses      []*spdx.AnyLicenseInfo
+	IndividualElements []*spdx.IndividualElement
+	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
 
 	// All elements indexed by SPDX ID
 	ElementsByID map[string]interface{}

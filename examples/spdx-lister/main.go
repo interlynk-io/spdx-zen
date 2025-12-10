@@ -141,6 +141,8 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 	fmt.Printf("  SoftwareAgents:%d\n", len(doc.SoftwareAgents))
 	fmt.Printf("  Tools:         %d\n", len(doc.Tools))
 	fmt.Printf("  Licenses:      %d\n", len(doc.Licenses))
+	fmt.Printf("  IndividualElements: %d\n", len(doc.IndividualElements))
+	fmt.Printf("  IndividualLicensingInfos: %d\n", len(doc.IndividualLicensingInfos))
 	fmt.Println()
 
 	// Packages
@@ -381,6 +383,24 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 		fmt.Println("Tools:")
 		for _, tool := range doc.Tools {
 			fmt.Printf("  - %s\n", tool.Name)
+		}
+		fmt.Println()
+	}
+
+	// Individual Elements
+	if len(doc.IndividualElements) > 0 {
+		fmt.Println("Individual Elements:")
+		for _, ie := range doc.IndividualElements {
+			fmt.Printf("  - %s\n", ie.Name)
+		}
+		fmt.Println()
+	}
+
+	// Individual Licensing Infos
+	if len(doc.IndividualLicensingInfos) > 0 {
+		fmt.Println("Individual Licensing Infos:")
+		for _, ili := range doc.IndividualLicensingInfos {
+			fmt.Printf("  - %s\n", ili.Name)
 		}
 		fmt.Println()
 	}
