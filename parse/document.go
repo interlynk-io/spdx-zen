@@ -8,20 +8,20 @@ type Document struct {
 	Graph   []spdx.Element `json:"-"` // Parsed elements from @graph
 
 	// Parsed and categorized elements
-	SpdxDocument  *spdx.SpdxDocument
-	Packages      []*spdx.Package
-	Files         []*spdx.File
-	Snippets      []*spdx.Snippet
-	Relationships []*spdx.Relationship
-	Annotations   []*spdx.Annotation
-	ExternalMaps  []*spdx.ExternalMap
-	CreationInfo  *spdx.CreationInfo
-	Organizations []*spdx.Organization
-	Persons       []*spdx.Person
-	SoftwareAgents []*spdx.SoftwareAgent
-	Tools         []*spdx.Tool
-	Licenses      []*spdx.AnyLicenseInfo
-	IndividualElements []*spdx.IndividualElement
+	SpdxDocument             *spdx.SpdxDocument
+	Packages                 []*spdx.Package
+	Files                    []*spdx.File
+	Snippets                 []*spdx.Snippet
+	Relationships            []*spdx.Relationship
+	Annotations              []*spdx.Annotation
+	ExternalMaps             []*spdx.ExternalMap
+	CreationInfo             *spdx.CreationInfo
+	Organizations            []*spdx.Organization
+	Persons                  []*spdx.Person
+	SoftwareAgents           []*spdx.SoftwareAgent
+	Tools                    []*spdx.Tool
+	Licenses                 []*spdx.AnyLicenseInfo
+	IndividualElements       []*spdx.IndividualElement
 	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
 
 	// All elements indexed by SPDX ID
@@ -32,13 +32,13 @@ type Document struct {
 	RelationshipsToIndex   map[string][]*spdx.Relationship
 
 	// Element type indexes for O(1) lookups
-	PackagesByID      map[string]*spdx.Package
-	FilesByID         map[string]*spdx.File
-	OrganizationsByID map[string]*spdx.Organization
-	PersonsByID       map[string]*spdx.Person
+	PackagesByID       map[string]*spdx.Package
+	FilesByID          map[string]*spdx.File
+	OrganizationsByID  map[string]*spdx.Organization
+	PersonsByID        map[string]*spdx.Person
 	SoftwareAgentsByID map[string]*spdx.SoftwareAgent
-	ToolsByID         map[string]*spdx.Tool
-	LicensesByID      map[string]*spdx.AnyLicenseInfo
+	ToolsByID          map[string]*spdx.Tool
+	LicensesByID       map[string]*spdx.AnyLicenseInfo
 }
 
 // GetName returns the document name

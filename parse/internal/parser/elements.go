@@ -207,20 +207,20 @@ func (p *ElementParser) ParseLicenseInfo(elemMap map[string]interface{}) *spdx.A
 	if elemMap == nil {
 		return nil
 	}
-	
+
 	// Check for license expression field (simplelicensing_licenseExpression)
 	licenseExpression := p.h.GetString(elemMap, "simplelicensing_licenseExpression")
 	if licenseExpression == "" {
 		// Also check for the standard field name
 		licenseExpression = p.h.GetString(elemMap, "licenseExpression")
 	}
-	
+
 	// If we have a license expression, use it as the name
 	name := p.h.GetString(elemMap, "name")
 	if name == "" && licenseExpression != "" {
 		name = licenseExpression
 	}
-	
+
 	return &spdx.AnyLicenseInfo{
 		Element: spdx.Element{
 			SpdxID:  p.h.GetString(elemMap, "spdxId"),
