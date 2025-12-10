@@ -253,6 +253,21 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 		if tool.SpdxID != "" {
 			doc.ToolsByID[tool.SpdxID] = tool
 		}
+	case TypeBom:
+		bom := r.parser.ParseBom(elemMap)
+		doc.Boms = append(doc.Boms, bom)
+	case TypeBundle:
+		bundle := r.parser.ParseBundle(elemMap)
+		doc.Bundles = append(doc.Bundles, bundle)
+	case TypeDictionaryEntry:
+		de := r.parser.ParseDictionaryEntry(elemMap)
+		doc.DictionaryEntries = append(doc.DictionaryEntries, de)
+	case TypeHash:
+		hash := r.parser.ParseHash(elemMap)
+		doc.Hashes = append(doc.Hashes, hash)
+	case TypePackageVerificationCode:
+		pvc := r.parser.ParsePackageVerificationCode(elemMap)
+		doc.PackageVerificationCodes = append(doc.PackageVerificationCodes, pvc)
 	case TypeIndividualElement:
 		ie := r.parser.ParseIndividualElement(elemMap)
 		doc.IndividualElements = append(doc.IndividualElements, ie)

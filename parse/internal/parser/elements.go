@@ -186,6 +186,14 @@ func (p *ElementParser) ParseTool(elemMap map[string]interface{}) *spdx.Tool {
 	}
 }
 
+// ParseDictionaryEntry parses a dictionary entry from a JSON map.
+func (p *ElementParser) ParseDictionaryEntry(elemMap map[string]interface{}) *spdx.DictionaryEntry {
+	return &spdx.DictionaryEntry{
+		Key:   p.h.GetString(elemMap, "key"),
+		Value: p.h.GetString(elemMap, "value"),
+	}
+}
+
 // ParseIndividualElement parses an individual element from a JSON map.
 func (p *ElementParser) ParseIndividualElement(elemMap map[string]interface{}) *spdx.IndividualElement {
 	return &spdx.IndividualElement{
@@ -288,6 +296,56 @@ func (p *ElementParser) ParseSpdxDocument(elemMap map[string]interface{}) *spdx.
 	}
 
 	return doc
+}
+
+// ParseElementCollection parses an element collection from a JSON map.
+func (p *ElementParser) ParseElementCollection(elemMap map[string]interface{}) spdx.ElementCollection {
+	ec := spdx.ElementCollection{
+		Element: p.ParseElement(elemMap),
+	}
+
+	if elems := p.h.GetSlice(elemMap, "element"); elems != nil {
+		for _, e := range elems {
+			if es, ok := e.(string); ok {
+				ec.Elements = append(ec.Elements, spdx.Element{SpdxID: es})
+			}
+		}
+	}
+
+	if rootElems := p.h.GetSlice(elemMap, "rootElement"); rootElems != nil {
+		for _, r := range rootElems {
+			if rs, ok := r.(string); ok {
+				ec.RootElement = append(ec.RootElement, spdx.Element{SpdxID: rs})
+			}
+		}
+	}
+
+	if pc := p.h.GetSlice(elemMap, "profileConformance"); pc != nil {
+		for _, profile := range pc {
+			if ps, ok := profile.(string); ok {
+				ec.ProfileConformance = append(ec.ProfileConformance, spdx.ProfileIdentifierType(ps))
+			}
+		}
+	}
+
+	return ec
+}
+
+// ParseBundle parses a bundle from a JSON map.
+func (p *ElementParser) ParseBundle(elemMap map[string]interface{}) *spdx.Bundle {
+	bundle := &spdx.Bundle{
+		ElementCollection: p.ParseElementCollection(elemMap),
+		Context:           p.h.GetString(elemMap, "context"),
+	}
+	return bundle
+}
+
+// ParseBom parses a bom from a JSON map.
+func (p *ElementParser) ParseBom(elemMap map[string]interface{}) *spdx.Bom {
+	bom := &spdx.Bom{
+		Bundle: *p.ParseBundle(elemMap),
+	}
+	return bom
 }
 
 // ParsePackage parses a software package from a JSON map.
@@ -451,6 +509,31 @@ func (p *ElementParser) ParseExternalMap(elemMap map[string]interface{}) *spdx.E
 	}
 
 	return em
+}
+
+// ParseHash parses a hash from a JSON map.
+func (p *ElementParser) ParseHash(elemMap map[string]interface{}) *spdx.Hash {
+	hash := &spdx.Hash{
+		IntegrityMethod: p.ParseIntegrityMethod(elemMap),
+		HashValue:       p.h.GetString(elemMap, "hashValue"),
+	}
+	if alg, ok := elemMap["algorithm"].(string); ok {
+		hash.Algorithm = spdx.HashAlgorithm(alg)
+	}
+	return hash
+}
+
+// ParsePackageVerificationCode parses a package verification code from a JSON map.
+func (p *ElementParser) ParsePackageVerificationCode(elemMap map[string]interface{}) *spdx.PackageVerificationCode {
+	pvc := &spdx.PackageVerificationCode{
+		IntegrityMethod:                 p.ParseIntegrityMethod(elemMap),
+		HashValue:                       p.h.GetString(elemMap, "hashValue"),
+		PackageVerificationCodeExcludedFile: p.h.GetStringSlice(elemMap, "packageVerificationCodeExcludedFile"),
+	}
+	if alg, ok := elemMap["algorithm"].(string); ok {
+		pvc.Algorithm = spdx.HashAlgorithm(alg)
+	}
+	return pvc
 }
 
 // GetTime is a helper for parsing time strings.

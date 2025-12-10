@@ -10,6 +10,7 @@ const (
 	TypeRelationship            ElementType = "Relationship"
 	TypeLifecycleScopedRelationship ElementType = "LifecycleScopedRelationship"
 	TypeAnnotation              ElementType = "Annotation"
+	TypeBom                     ElementType = "Bom"
 	TypeBundle                  ElementType = "Bundle"
 	TypeExternalMap             ElementType = "ExternalMap"
 	TypeExternalIdentifier      ElementType = "ExternalIdentifier"
@@ -91,7 +92,7 @@ func (t ElementType) String() string {
 func (t ElementType) IsCore() bool {
 	switch t {
 	case TypeElement, TypeSpdxDocument, TypeRelationship, TypeLifecycleScopedRelationship, TypeAnnotation,
-		TypeBundle, TypeExternalMap, TypeExternalIdentifier, TypeExternalRef,
+		TypeBom, TypeBundle, TypeExternalMap, TypeExternalIdentifier, TypeExternalRef,
 		TypeHash, TypeCreationInfo, TypeAgent, TypePerson, TypeOrganization,
 		TypeSoftwareAgent, TypeTool, TypeArtifact, TypeNamespaceMap,
 		TypeDictionaryEntry, TypePositiveIntegerRange, TypeIntegrityMethod,

@@ -21,6 +21,11 @@ type Document struct {
 	Persons                  []*spdx.Person
 	SoftwareAgents           []*spdx.SoftwareAgent
 	Tools                    []*spdx.Tool
+	Bundles                  []*spdx.Bundle
+	Boms                     []*spdx.Bom
+	DictionaryEntries        []*spdx.DictionaryEntry
+	Hashes                   []*spdx.Hash
+	PackageVerificationCodes []*spdx.PackageVerificationCode
 	Licenses                 []*spdx.AnyLicenseInfo
 	IndividualElements       []*spdx.IndividualElement
 	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
