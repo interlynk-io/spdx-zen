@@ -8,27 +8,40 @@ type Document struct {
 	Graph   []spdx.Element `json:"-"` // Parsed elements from @graph
 
 	// Parsed and categorized elements
-	SpdxDocument             *spdx.SpdxDocument
-	Packages                 []*spdx.Package
-	Files                    []*spdx.File
-	Snippets                   []*spdx.Snippet
-	Relationships            []*spdx.Relationship
+	SpdxDocument                 *spdx.SpdxDocument
+	Packages                     []*spdx.Package
+	Files                        []*spdx.File
+	Snippets                     []*spdx.Snippet
+	Relationships                []*spdx.Relationship
 	LifecycleScopedRelationships []*spdx.LifecycleScopedRelationship
-	Annotations              []*spdx.Annotation
-	ExternalMaps             []*spdx.ExternalMap
-	CreationInfo             *spdx.CreationInfo
-	Organizations            []*spdx.Organization
-	Persons                  []*spdx.Person
-	SoftwareAgents           []*spdx.SoftwareAgent
-	Tools                    []*spdx.Tool
-	Bundles                  []*spdx.Bundle
-	Boms                     []*spdx.Bom
-	DictionaryEntries        []*spdx.DictionaryEntry
-	Hashes                   []*spdx.Hash
-	PackageVerificationCodes []*spdx.PackageVerificationCode
-	Licenses                 []*spdx.AnyLicenseInfo
-	IndividualElements       []*spdx.IndividualElement
-	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
+	Annotations                  []*spdx.Annotation
+	ExternalMaps                 []*spdx.ExternalMap
+	CreationInfo                 *spdx.CreationInfo
+	Organizations                []*spdx.Organization
+	Persons                      []*spdx.Person
+	SoftwareAgents               []*spdx.SoftwareAgent
+	Tools                        []*spdx.Tool
+	Bundles                      []*spdx.Bundle
+	Boms                         []*spdx.Bom
+	DictionaryEntries            []*spdx.DictionaryEntry
+	Hashes                       []*spdx.Hash
+	PackageVerificationCodes     []*spdx.PackageVerificationCode
+	Licenses                     []*spdx.AnyLicenseInfo
+	IndividualElements           []*spdx.IndividualElement
+	IndividualLicensingInfos     []*spdx.IndividualLicensingInfo
+
+	// Security-related elements
+	Vulnerabilities                      []*spdx.Vulnerability
+	CvssV2VulnAssessments                []*spdx.CvssV2VulnAssessmentRelationship
+	CvssV3VulnAssessments                []*spdx.CvssV3VulnAssessmentRelationship
+	CvssV4VulnAssessments                []*spdx.CvssV4VulnAssessmentRelationship
+	EpssVulnAssessments                  []*spdx.EpssVulnAssessmentRelationship
+	SsvcVulnAssessments                  []*spdx.SsvcVulnAssessmentRelationship
+	ExploitCatalogVulnAssessments        []*spdx.ExploitCatalogVulnAssessmentRelationship
+	VexAffectedVulnAssessments           []*spdx.VexAffectedVulnAssessmentRelationship
+	VexFixedVulnAssessments              []*spdx.VexFixedVulnAssessmentRelationship
+	VexNotAffectedVulnAssessments        []*spdx.VexNotAffectedVulnAssessmentRelationship
+	VexUnderInvestigationVulnAssessments []*spdx.VexUnderInvestigationVulnAssessmentRelationship
 
 	// All elements indexed by SPDX ID
 	ElementsByID map[string]interface{}
@@ -38,13 +51,24 @@ type Document struct {
 	RelationshipsToIndex   map[string][]*spdx.Relationship
 
 	// Element type indexes for O(1) lookups
-	PackagesByID       map[string]*spdx.Package
-	FilesByID          map[string]*spdx.File
-	OrganizationsByID  map[string]*spdx.Organization
-	PersonsByID        map[string]*spdx.Person
-	SoftwareAgentsByID map[string]*spdx.SoftwareAgent
-	ToolsByID          map[string]*spdx.Tool
-	LicensesByID       map[string]*spdx.AnyLicenseInfo
+	PackagesByID                             map[string]*spdx.Package
+	FilesByID                                map[string]*spdx.File
+	OrganizationsByID                        map[string]*spdx.Organization
+	PersonsByID                              map[string]*spdx.Person
+	SoftwareAgentsByID                       map[string]*spdx.SoftwareAgent
+	ToolsByID                                map[string]*spdx.Tool
+	LicensesByID                             map[string]*spdx.AnyLicenseInfo
+	VulnerabilitiesByID                      map[string]*spdx.Vulnerability
+	CvssV2VulnAssessmentsByID                map[string]*spdx.CvssV2VulnAssessmentRelationship
+	CvssV3VulnAssessmentsByID                map[string]*spdx.CvssV3VulnAssessmentRelationship
+	CvssV4VulnAssessmentsByID                map[string]*spdx.CvssV4VulnAssessmentRelationship
+	EpssVulnAssessmentsByID                  map[string]*spdx.EpssVulnAssessmentRelationship
+	SsvcVulnAssessmentsByID                  map[string]*spdx.SsvcVulnAssessmentRelationship
+	ExploitCatalogVulnAssessmentsByID        map[string]*spdx.ExploitCatalogVulnAssessmentRelationship
+	VexAffectedVulnAssessmentsByID           map[string]*spdx.VexAffectedVulnAssessmentRelationship
+	VexFixedVulnAssessmentsByID              map[string]*spdx.VexFixedVulnAssessmentRelationship
+	VexNotAffectedVulnAssessmentsByID        map[string]*spdx.VexNotAffectedVulnAssessmentRelationship
+	VexUnderInvestigationVulnAssessmentsByID map[string]*spdx.VexUnderInvestigationVulnAssessmentRelationship
 }
 
 // GetName returns the document name

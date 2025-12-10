@@ -109,16 +109,27 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 	}
 
 	doc := &Document{
-		ElementsByID:           make(map[string]interface{}),
-		RelationshipsFromIndex: make(map[string][]*spdx.Relationship),
-		RelationshipsToIndex:   make(map[string][]*spdx.Relationship),
-		PackagesByID:           make(map[string]*spdx.Package),
-		FilesByID:              make(map[string]*spdx.File),
-		OrganizationsByID:      make(map[string]*spdx.Organization),
-		PersonsByID:            make(map[string]*spdx.Person),
-		SoftwareAgentsByID:     make(map[string]*spdx.SoftwareAgent),
-		ToolsByID:              make(map[string]*spdx.Tool),
-		LicensesByID:           make(map[string]*spdx.AnyLicenseInfo),
+		ElementsByID:                             make(map[string]interface{}),
+		RelationshipsFromIndex:                   make(map[string][]*spdx.Relationship),
+		RelationshipsToIndex:                     make(map[string][]*spdx.Relationship),
+		PackagesByID:                             make(map[string]*spdx.Package),
+		FilesByID:                                make(map[string]*spdx.File),
+		OrganizationsByID:                        make(map[string]*spdx.Organization),
+		PersonsByID:                              make(map[string]*spdx.Person),
+		SoftwareAgentsByID:                       make(map[string]*spdx.SoftwareAgent),
+		ToolsByID:                                make(map[string]*spdx.Tool),
+		LicensesByID:                             make(map[string]*spdx.AnyLicenseInfo),
+		VulnerabilitiesByID:                      make(map[string]*spdx.Vulnerability),
+		CvssV2VulnAssessmentsByID:                make(map[string]*spdx.CvssV2VulnAssessmentRelationship),
+		CvssV3VulnAssessmentsByID:                make(map[string]*spdx.CvssV3VulnAssessmentRelationship),
+		CvssV4VulnAssessmentsByID:                make(map[string]*spdx.CvssV4VulnAssessmentRelationship),
+		EpssVulnAssessmentsByID:                  make(map[string]*spdx.EpssVulnAssessmentRelationship),
+		SsvcVulnAssessmentsByID:                  make(map[string]*spdx.SsvcVulnAssessmentRelationship),
+		ExploitCatalogVulnAssessmentsByID:        make(map[string]*spdx.ExploitCatalogVulnAssessmentRelationship),
+		VexAffectedVulnAssessmentsByID:           make(map[string]*spdx.VexAffectedVulnAssessmentRelationship),
+		VexFixedVulnAssessmentsByID:              make(map[string]*spdx.VexFixedVulnAssessmentRelationship),
+		VexNotAffectedVulnAssessmentsByID:        make(map[string]*spdx.VexNotAffectedVulnAssessmentRelationship),
+		VexUnderInvestigationVulnAssessmentsByID: make(map[string]*spdx.VexUnderInvestigationVulnAssessmentRelationship),
 	}
 
 	// Extract @context
@@ -191,66 +202,52 @@ func (r *Reader) getElementType(elemMap map[string]interface{}) ElementType {
 
 // categorizeElement parses and categorizes an element based on its type.
 func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}, elemType ElementType) {
+	if r.handleCoreElements(doc, elemMap, elemType) {
+		return
+	}
+	if r.handleSoftwareElements(doc, elemMap, elemType) {
+		return
+	}
+	if r.handleLicensingElements(doc, elemMap, elemType) {
+		return
+	}
+	if r.handleSecurityElements(doc, elemMap, elemType) {
+		return
+	}
+}
+
+func (r *Reader) handleCoreElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
 	switch elemType {
 	case TypeSpdxDocument:
 		doc.SpdxDocument = r.parser.ParseSpdxDocument(elemMap)
-
-	case TypeSoftwarePackage:
-		pkg := r.parser.ParsePackage(elemMap)
-		doc.Packages = append(doc.Packages, pkg)
-		if pkg.SpdxID != "" {
-			doc.PackagesByID[pkg.SpdxID] = pkg
-		}
-
-	case TypeSoftwareFile:
-		file := r.parser.ParseFile(elemMap)
-		doc.Files = append(doc.Files, file)
-		if file.SpdxID != "" {
-			doc.FilesByID[file.SpdxID] = file
-		}
-
-	case TypeSoftwareSnippet:
-		doc.Snippets = append(doc.Snippets, r.parser.ParseSnippet(elemMap))
-
-	case TypeSoftwareSbom:
-		sbom := r.parser.ParseSbom(elemMap)
-		doc.Boms = append(doc.Boms, &sbom.Bom)
-
 	case TypeRelationship:
 		doc.Relationships = append(doc.Relationships, r.parser.ParseRelationship(elemMap))
 	case TypeLifecycleScopedRelationship:
 		doc.LifecycleScopedRelationships = append(doc.LifecycleScopedRelationships, r.parser.ParseLifecycleScopedRelationship(elemMap))
-
 	case TypeAnnotation:
 		doc.Annotations = append(doc.Annotations, r.parser.ParseAnnotation(elemMap))
-
 	case TypeExternalMap:
 		doc.ExternalMaps = append(doc.ExternalMaps, r.parser.ParseExternalMap(elemMap))
-
 	case TypeCreationInfo:
 		doc.CreationInfo = r.parser.ParseCreationInfo(elemMap)
-
 	case TypeOrganization:
 		org := r.parser.ParseOrganization(elemMap)
 		doc.Organizations = append(doc.Organizations, org)
 		if org.SpdxID != "" {
 			doc.OrganizationsByID[org.SpdxID] = org
 		}
-
 	case TypePerson:
 		person := r.parser.ParsePerson(elemMap)
 		doc.Persons = append(doc.Persons, person)
 		if person.SpdxID != "" {
 			doc.PersonsByID[person.SpdxID] = person
 		}
-
 	case TypeSoftwareAgent:
 		sa := r.parser.ParseSoftwareAgent(elemMap)
 		doc.SoftwareAgents = append(doc.SoftwareAgents, sa)
 		if sa.SpdxID != "" {
 			doc.SoftwareAgentsByID[sa.SpdxID] = sa
 		}
-
 	case TypeTool:
 		tool := r.parser.ParseTool(elemMap)
 		doc.Tools = append(doc.Tools, tool)
@@ -275,11 +272,42 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 	case TypeIndividualElement:
 		ie := r.parser.ParseIndividualElement(elemMap)
 		doc.IndividualElements = append(doc.IndividualElements, ie)
-
 	case TypeIndividualLicensingInfo:
 		ili := r.parser.ParseIndividualLicensingInfo(elemMap)
 		doc.IndividualLicensingInfos = append(doc.IndividualLicensingInfos, ili)
+	default:
+		return false
+	}
+	return true
+}
 
+func (r *Reader) handleSoftwareElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	switch elemType {
+	case TypeSoftwarePackage:
+		pkg := r.parser.ParsePackage(elemMap)
+		doc.Packages = append(doc.Packages, pkg)
+		if pkg.SpdxID != "" {
+			doc.PackagesByID[pkg.SpdxID] = pkg
+		}
+	case TypeSoftwareFile:
+		file := r.parser.ParseFile(elemMap)
+		doc.Files = append(doc.Files, file)
+		if file.SpdxID != "" {
+			doc.FilesByID[file.SpdxID] = file
+		}
+	case TypeSoftwareSnippet:
+		doc.Snippets = append(doc.Snippets, r.parser.ParseSnippet(elemMap))
+	case TypeSoftwareSbom:
+		sbom := r.parser.ParseSbom(elemMap)
+		doc.Boms = append(doc.Boms, &sbom.Bom)
+	default:
+		return false
+	}
+	return true
+}
+
+func (r *Reader) handleLicensingElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	switch elemType {
 	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense,
 		TypeLicenseExpression, TypeSimpleLicensingExpression:
 		lic := r.parser.ParseLicenseInfo(elemMap)
@@ -287,7 +315,84 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 		if lic.SpdxID != "" {
 			doc.LicensesByID[lic.SpdxID] = lic
 		}
+	default:
+		return false
 	}
+	return true
+}
+
+func (r *Reader) handleSecurityElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	switch elemType {
+	case TypeVulnerability:
+		vuln := r.parser.ParseVulnerability(elemMap)
+		doc.Vulnerabilities = append(doc.Vulnerabilities, vuln)
+		if vuln.SpdxID != "" {
+			doc.VulnerabilitiesByID[vuln.SpdxID] = vuln
+		}
+	case TypeCvssV2VulnAssessment:
+		cvss2 := r.parser.ParseCvssV2VulnAssessmentRelationship(elemMap)
+		doc.CvssV2VulnAssessments = append(doc.CvssV2VulnAssessments, cvss2)
+		if cvss2.SpdxID != "" {
+			doc.CvssV2VulnAssessmentsByID[cvss2.SpdxID] = cvss2
+		}
+	case TypeCvssV3VulnAssessment:
+		cvss3 := r.parser.ParseCvssV3VulnAssessmentRelationship(elemMap)
+		doc.CvssV3VulnAssessments = append(doc.CvssV3VulnAssessments, cvss3)
+		if cvss3.SpdxID != "" {
+			doc.CvssV3VulnAssessmentsByID[cvss3.SpdxID] = cvss3
+		}
+	case TypeCvssV4VulnAssessment:
+		cvss4 := r.parser.ParseCvssV4VulnAssessmentRelationship(elemMap)
+		doc.CvssV4VulnAssessments = append(doc.CvssV4VulnAssessments, cvss4)
+		if cvss4.SpdxID != "" {
+			doc.CvssV4VulnAssessmentsByID[cvss4.SpdxID] = cvss4
+		}
+	case TypeEpssVulnAssessment:
+		epss := r.parser.ParseEpssVulnAssessmentRelationship(elemMap)
+		doc.EpssVulnAssessments = append(doc.EpssVulnAssessments, epss)
+		if epss.SpdxID != "" {
+			doc.EpssVulnAssessmentsByID[epss.SpdxID] = epss
+		}
+	case TypeSsvcVulnAssessment:
+		ssvc := r.parser.ParseSsvcVulnAssessmentRelationship(elemMap)
+		doc.SsvcVulnAssessments = append(doc.SsvcVulnAssessments, ssvc)
+		if ssvc.SpdxID != "" {
+			doc.SsvcVulnAssessmentsByID[ssvc.SpdxID] = ssvc
+		}
+	case TypeExploitCatalogVulnAssessment:
+		ec := r.parser.ParseExploitCatalogVulnAssessmentRelationship(elemMap)
+		doc.ExploitCatalogVulnAssessments = append(doc.ExploitCatalogVulnAssessments, ec)
+		if ec.SpdxID != "" {
+			doc.ExploitCatalogVulnAssessmentsByID[ec.SpdxID] = ec
+		}
+	case TypeVexAffectedVulnAssessment:
+		vexAffected := r.parser.ParseVexAffectedVulnAssessmentRelationship(elemMap)
+		doc.VexAffectedVulnAssessments = append(doc.VexAffectedVulnAssessments, vexAffected)
+		if vexAffected.SpdxID != "" {
+			doc.VexAffectedVulnAssessmentsByID[vexAffected.SpdxID] = vexAffected
+		}
+	case TypeVexFixedVulnAssessment:
+		vexFixed := r.parser.ParseVexFixedVulnAssessmentRelationship(elemMap)
+		doc.VexFixedVulnAssessments = append(doc.VexFixedVulnAssessments, vexFixed)
+		if vexFixed.SpdxID != "" {
+			doc.VexFixedVulnAssessmentsByID[vexFixed.SpdxID] = vexFixed
+		}
+	case TypeVexNotAffectedVulnAssessment:
+		vexNotAffected := r.parser.ParseVexNotAffectedVulnAssessmentRelationship(elemMap)
+		doc.VexNotAffectedVulnAssessments = append(doc.VexNotAffectedVulnAssessments, vexNotAffected)
+		if vexNotAffected.SpdxID != "" {
+			doc.VexNotAffectedVulnAssessmentsByID[vexNotAffected.SpdxID] = vexNotAffected
+		}
+	case TypeVexUnderInvestigationVulnAssessment:
+		vexUnderInvestigation := r.parser.ParseVexUnderInvestigationVulnAssessmentRelationship(elemMap)
+		doc.VexUnderInvestigationVulnAssessments = append(doc.VexUnderInvestigationVulnAssessments, vexUnderInvestigation)
+		if vexUnderInvestigation.SpdxID != "" {
+			doc.VexUnderInvestigationVulnAssessmentsByID[vexUnderInvestigation.SpdxID] = vexUnderInvestigation
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 // Expand uses JSON-LD expansion on the document.

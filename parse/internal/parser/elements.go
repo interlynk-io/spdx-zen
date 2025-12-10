@@ -175,6 +175,164 @@ func (p *ElementParser) ParseContentIdentifier(elemMap map[string]interface{}) *
 	return ci
 }
 
+// ParseVulnerability parses a vulnerability from a JSON map.
+func (p *ElementParser) ParseVulnerability(elemMap map[string]interface{}) *spdx.Vulnerability {
+	vuln := &spdx.Vulnerability{}
+	vuln.Artifact = *p.ParseArtifact(elemMap) // Vulnerability embeds Artifact
+	vuln.PublishedTime = p.h.GetTime(elemMap, "publishedTime")
+	vuln.ModifiedTime = p.h.GetTime(elemMap, "modifiedTime")
+	vuln.WithdrawnTime = p.h.GetTime(elemMap, "withdrawnTime")
+	return vuln
+}
+
+// ParseVulnAssessmentRelationship parses a generic vulnerability assessment relationship from a JSON map.
+// This serves as a helper for specific VulnAssessmentRelationship types.
+func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VulnAssessmentRelationship {
+	var vulnRel spdx.VulnAssessmentRelationship
+	vulnRel.Relationship = *p.ParseRelationship(elemMap) // VulnAssessmentRelationship embeds Relationship
+
+	if ae, ok := elemMap["assessedElement"].(string); ok {
+		vulnRel.AssessedElement = &spdx.SoftwareArtifact{
+			Artifact: spdx.Artifact{
+				Element: spdx.Element{SpdxID: ae},
+			},
+		}
+	}
+
+	vulnRel.PublishedTime = p.h.GetTime(elemMap, "publishedTime")
+
+	// Parse suppliedBy if present
+	if sb, ok := elemMap["suppliedBy"]; ok {
+		if sbMap, ok := sb.(map[string]interface{}); ok {
+			vulnRel.SuppliedBy = p.ParseAgent(sbMap)
+		} else if sbStr, ok := sb.(string); ok {
+			vulnRel.SuppliedBy = &spdx.Agent{Element: spdx.Element{SpdxID: sbStr}}
+		}
+	}
+
+	vulnRel.ModifiedTime = p.h.GetTime(elemMap, "modifiedTime")
+	vulnRel.WithdrawnTime = p.h.GetTime(elemMap, "withdrawnTime")
+	return &vulnRel
+}
+
+// ParseVexVulnAssessmentRelationship parses a generic VEX vulnerability assessment relationship from a JSON map.
+// This serves as a helper for specific VEX VulnAssessmentRelationship types.
+func (p *ElementParser) ParseVexVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexVulnAssessmentRelationship {
+	var vexVulnRel spdx.VexVulnAssessmentRelationship
+	vexVulnRel.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // VexVulnAssessmentRelationship embeds VulnAssessmentRelationship
+
+	vexVulnRel.VexVersion = p.h.GetString(elemMap, "vexVersion")
+	vexVulnRel.StatusNotes = p.h.GetString(elemMap, "statusNotes")
+	return &vexVulnRel
+}
+
+// ParseCvssV2VulnAssessmentRelationship parses a CVSSv2 vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseCvssV2VulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.CvssV2VulnAssessmentRelationship {
+	cvss2 := &spdx.CvssV2VulnAssessmentRelationship{}
+	cvss2.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+
+	cvss2.Score = p.h.GetFloat(elemMap, "score")
+	cvss2.VectorString = p.h.GetString(elemMap, "vectorString")
+	return cvss2
+}
+
+// ParseCvssV3VulnAssessmentRelationship parses a CVSSv3 vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseCvssV3VulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.CvssV3VulnAssessmentRelationship {
+	cvss3 := &spdx.CvssV3VulnAssessmentRelationship{}
+	cvss3.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+
+	cvss3.Score = p.h.GetFloat(elemMap, "score")
+	if sev, ok := elemMap["severity"].(string); ok {
+		cvss3.Severity = spdx.CvssSeverityType(sev)
+	}
+	cvss3.VectorString = p.h.GetString(elemMap, "vectorString")
+	return cvss3
+}
+
+// ParseCvssV4VulnAssessmentRelationship parses a CVSSv4 vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseCvssV4VulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.CvssV4VulnAssessmentRelationship {
+	cvss4 := &spdx.CvssV4VulnAssessmentRelationship{}
+	cvss4.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+
+	cvss4.Score = p.h.GetFloat(elemMap, "score")
+	if sev, ok := elemMap["severity"].(string); ok {
+		cvss4.Severity = spdx.CvssSeverityType(sev)
+	}
+	cvss4.VectorString = p.h.GetString(elemMap, "vectorString")
+	return cvss4
+}
+
+// ParseEpssVulnAssessmentRelationship parses an EPSS vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseEpssVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.EpssVulnAssessmentRelationship {
+	epss := &spdx.EpssVulnAssessmentRelationship{}
+	epss.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+
+	epss.Probability = p.h.GetFloat(elemMap, "probability")
+	epss.Percentile = p.h.GetFloat(elemMap, "percentile")
+	return epss
+}
+
+// ParseSsvcVulnAssessmentRelationship parses an SSVC vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseSsvcVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.SsvcVulnAssessmentRelationship {
+	ssvc := &spdx.SsvcVulnAssessmentRelationship{}
+	ssvc.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+
+	if dt, ok := elemMap["decisionType"].(string); ok {
+		ssvc.DecisionType = spdx.SsvcDecisionType(dt)
+	}
+	return ssvc
+}
+
+// ParseExploitCatalogVulnAssessmentRelationship parses an ExploitCatalog vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseExploitCatalogVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.ExploitCatalogVulnAssessmentRelationship {
+	ec := &spdx.ExploitCatalogVulnAssessmentRelationship{}
+	ec.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+
+	if ct, ok := elemMap["catalogType"].(string); ok {
+		ec.CatalogType = spdx.ExploitCatalogType(ct)
+	}
+	ec.Exploited = p.h.GetBool(elemMap, "exploited")
+	ec.Locator = p.h.GetString(elemMap, "locator")
+	return ec
+}
+
+// ParseVexAffectedVulnAssessmentRelationship parses a VexAffected vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseVexAffectedVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexAffectedVulnAssessmentRelationship {
+	vexAffected := &spdx.VexAffectedVulnAssessmentRelationship{}
+	vexAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+
+	vexAffected.ActionStatement = p.h.GetString(elemMap, "actionStatement")
+	vexAffected.ActionStatementTime = p.h.GetTime(elemMap, "actionStatementTime")
+	return vexAffected
+}
+
+// ParseVexFixedVulnAssessmentRelationship parses a VexFixed vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseVexFixedVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexFixedVulnAssessmentRelationship {
+	vexFixed := &spdx.VexFixedVulnAssessmentRelationship{}
+	vexFixed.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+	return vexFixed
+}
+
+// ParseVexNotAffectedVulnAssessmentRelationship parses a VexNotAffected vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseVexNotAffectedVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexNotAffectedVulnAssessmentRelationship {
+	vexNotAffected := &spdx.VexNotAffectedVulnAssessmentRelationship{}
+	vexNotAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+
+	if jt, ok := elemMap["justificationType"].(string); ok {
+		vexNotAffected.JustificationType = spdx.VexJustificationType(jt)
+	}
+	vexNotAffected.ImpactStatement = p.h.GetString(elemMap, "impactStatement")
+	vexNotAffected.ImpactStatementTime = p.h.GetTime(elemMap, "impactStatementTime")
+	return vexNotAffected
+}
+
+// ParseVexUnderInvestigationVulnAssessmentRelationship parses a VexUnderInvestigation vulnerability assessment relationship from a JSON map.
+func (p *ElementParser) ParseVexUnderInvestigationVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexUnderInvestigationVulnAssessmentRelationship {
+	vexUnderInvestigation := &spdx.VexUnderInvestigationVulnAssessmentRelationship{}
+	vexUnderInvestigation.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+	return vexUnderInvestigation
+}
+
 // ParseAgent parses an agent from a JSON map.
 func (p *ElementParser) ParseAgent(elemMap map[string]interface{}) *spdx.Agent {
 	return &spdx.Agent{
