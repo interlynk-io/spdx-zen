@@ -252,8 +252,7 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 
 	// Software Artifact fields
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
-		purpose := spdx.SoftwarePurpose(pp)
-		pkg.PrimaryPurpose = &purpose
+		pkg.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
 	if ap := p.h.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
@@ -288,13 +287,11 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 	file.AttributionText = p.h.GetStringSlice(elemMap, "software_attributionText")
 
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
-		purpose := spdx.SoftwarePurpose(pp)
-		file.PrimaryPurpose = &purpose
+		file.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
 	if fk, ok := elemMap["software_fileKind"].(string); ok {
-		fileKind := spdx.FileKindType(fk)
-		file.FileKind = &fileKind
+		file.FileKind = spdx.FileKindType(fk)
 	}
 
 	return file
@@ -345,8 +342,7 @@ func (p *ElementParser) ParseRelationship(elemMap map[string]interface{}) *spdx.
 	}
 
 	if comp, ok := elemMap["completeness"].(string); ok {
-		completeness := spdx.RelationshipCompleteness(comp)
-		rel.Completeness = &completeness
+		rel.Completeness = spdx.RelationshipCompleteness(comp)
 	}
 
 	rel.StartTime = p.h.GetTime(elemMap, "startTime")
