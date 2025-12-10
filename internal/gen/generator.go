@@ -260,7 +260,7 @@ func (g *Generator) writeClass(buf *bytes.Buffer, class *Class, _ map[string][]s
 		}
 
 		// Add pointer for optional non-slice reference types
-		if prop.MinCount == 0 && prop.MaxCount == 1 && isReferenceType(fieldType) {
+		if prop.MinCount == 0 && prop.MaxCount == 1 && g.isReferenceType(fieldType) {
 			fieldType = "*" + fieldType
 		}
 
@@ -441,7 +441,36 @@ func formatComment(comment string) string {
 }
 
 // isReferenceType returns true if the type should be a pointer when optional.
-func isReferenceType(typeName string) bool {
+func (g *Generator) isReferenceType(typeName string) bool {
+	// Enums are generated as string types, so they are not reference types.
+	if _, isEnum := g.model.Enums[spdxBaseURI+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"Core/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"Software/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"Security/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"Licensing/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"ExpandedLicensing/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"Dataset/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"AI/"+typeName]; isEnum {
+		return false
+	}
+	if _, isEnum := g.model.Enums[spdxBaseURI+"Build/"+typeName]; isEnum {
+		return false
+	}
+
 	switch typeName {
 	case "string", "bool", "int", "int64", "float64", "time.Time":
 		return false

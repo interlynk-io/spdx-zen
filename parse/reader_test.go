@@ -212,6 +212,7 @@ func TestDocument_GetMethods(t *testing.T) {
 		pkg := doc.GetPackageByID("SPDXRef-Package-1")
 		if pkg == nil {
 			t.Fatal("expected package, got nil")
+			return
 		}
 		if pkg.Name != "package-a" {
 			t.Errorf("package name = %q, want %q", pkg.Name, "package-a")

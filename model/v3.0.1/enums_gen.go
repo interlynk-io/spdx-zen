@@ -304,31 +304,6 @@ func (v HashAlgorithm) IsValid() bool {
 	}
 }
 
-// IndividualElement A concrete subclass of Element used by Individuals in the Core profile.
-type IndividualElement string
-
-const (
-	// IndividualElementNoAssertionElement An Individual Value for Element representing a set of Elements of unknown identify or cardinality (number).
-	IndividualElementNoAssertionElement IndividualElement = "NoAssertionElement"
-	// IndividualElementNoneElement An Individual Value for Element representing a set of Elements with cardinality (number/count) of zero.
-	IndividualElementNoneElement IndividualElement = "NoneElement"
-)
-
-// String returns the string representation of IndividualElement.
-func (v IndividualElement) String() string {
-	return string(v)
-}
-
-// IsValid returns true if the value is a valid IndividualElement.
-func (v IndividualElement) IsValid() bool {
-	switch v {
-	case IndividualElementNoAssertionElement, IndividualElementNoneElement:
-		return true
-	default:
-		return false
-	}
-}
-
 // LifecycleScopeType Provide an enumerated set of lifecycle phases that can provide context to relationships.
 type LifecycleScopeType string
 
@@ -356,29 +331,6 @@ func (v LifecycleScopeType) String() string {
 func (v LifecycleScopeType) IsValid() bool {
 	switch v {
 	case LifecycleScopeTypeBuild, LifecycleScopeTypeDesign, LifecycleScopeTypeDevelopment, LifecycleScopeTypeOther, LifecycleScopeTypeRuntime, LifecycleScopeTypeTest:
-		return true
-	default:
-		return false
-	}
-}
-
-// Organization A group of people who work together in an organized way for a shared purpose.
-type Organization string
-
-const (
-	// OrganizationSpdxOrganization An Organization representing the SPDX Project.
-	OrganizationSpdxOrganization Organization = "SpdxOrganization"
-)
-
-// String returns the string representation of Organization.
-func (v Organization) String() string {
-	return string(v)
-}
-
-// IsValid returns true if the value is a valid Organization.
-func (v Organization) IsValid() bool {
-	switch v {
-	case OrganizationSpdxOrganization:
 		return true
 	default:
 		return false
@@ -757,31 +709,6 @@ func (v DatasetType) String() string {
 func (v DatasetType) IsValid() bool {
 	switch v {
 	case DatasetTypeAudio, DatasetTypeCategorical, DatasetTypeGraph, DatasetTypeImage, DatasetTypeNoAssertion, DatasetTypeNumeric, DatasetTypeOther, DatasetTypeSensor, DatasetTypeStructured, DatasetTypeSyntactic, DatasetTypeText, DatasetTypeTimeseries, DatasetTypeTimestamp, DatasetTypeVideo:
-		return true
-	default:
-		return false
-	}
-}
-
-// IndividualLicensingInfo A concrete subclass of AnyLicenseInfo used by Individuals in the ExpandedLicensing profile.
-type IndividualLicensingInfo string
-
-const (
-	// IndividualLicensingInfoNoAssertionLicense An Individual Value for License when no assertion can be made about its actual value.
-	IndividualLicensingInfoNoAssertionLicense IndividualLicensingInfo = "NoAssertionLicense"
-	// IndividualLicensingInfoNoneLicense An Individual Value for License where the SPDX data creator determines that no license is present.
-	IndividualLicensingInfoNoneLicense IndividualLicensingInfo = "NoneLicense"
-)
-
-// String returns the string representation of IndividualLicensingInfo.
-func (v IndividualLicensingInfo) String() string {
-	return string(v)
-}
-
-// IsValid returns true if the value is a valid IndividualLicensingInfo.
-func (v IndividualLicensingInfo) IsValid() bool {
-	switch v {
-	case IndividualLicensingInfoNoAssertionLicense, IndividualLicensingInfoNoneLicense:
 		return true
 	default:
 		return false

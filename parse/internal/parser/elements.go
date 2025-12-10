@@ -104,8 +104,12 @@ func (p *ElementParser) ParseArtifact(elemMap map[string]interface{}) *spdx.Arti
 	}
 
 	// Parse suppliedBy if present
-	if sb := p.h.GetMap(elemMap, "suppliedBy"); sb != nil {
-		artifact.SuppliedBy = p.ParseAgent(sb)
+	if sb, ok := elemMap["suppliedBy"]; ok {
+		if sbMap, ok := sb.(map[string]interface{}); ok {
+			artifact.SuppliedBy = p.ParseAgent(sbMap)
+		} else if sbStr, ok := sb.(string); ok {
+			artifact.SuppliedBy = &spdx.Agent{Element: spdx.Element{SpdxID: sbStr}}
+		}
 	}
 
 	// Parse supportLevel if present
@@ -121,6 +125,9 @@ func (p *ElementParser) ParseArtifact(elemMap map[string]interface{}) *spdx.Arti
 		for _, v := range vu {
 			if vMap, ok := v.(map[string]interface{}); ok {
 				artifact.OriginatedBy = append(artifact.OriginatedBy, *p.ParseAgent(vMap))
+			} else if vStr, ok := v.(string); ok {
+				agent := spdx.Agent{Element: spdx.Element{SpdxID: vStr}}
+				artifact.OriginatedBy = append(artifact.OriginatedBy, agent)
 			}
 		}
 	}
@@ -145,10 +152,53 @@ func (p *ElementParser) ParseAgent(elemMap map[string]interface{}) *spdx.Agent {
 	}
 }
 
+// ParseOrganization parses an organization from a JSON map.
+func (p *ElementParser) ParseOrganization(elemMap map[string]interface{}) *spdx.Organization {
+	return &spdx.Organization{
+		Agent: spdx.Agent{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
+// ParsePerson parses a person from a JSON map.
+func (p *ElementParser) ParsePerson(elemMap map[string]interface{}) *spdx.Person {
+	return &spdx.Person{
+		Agent: spdx.Agent{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
+// ParseSoftwareAgent parses a software agent from a JSON map.
+func (p *ElementParser) ParseSoftwareAgent(elemMap map[string]interface{}) *spdx.SoftwareAgent {
+	return &spdx.SoftwareAgent{
+		Agent: spdx.Agent{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
 // ParseTool parses a tool from a JSON map.
 func (p *ElementParser) ParseTool(elemMap map[string]interface{}) *spdx.Tool {
 	return &spdx.Tool{
 		Element: p.ParseElement(elemMap),
+	}
+}
+
+// ParseIndividualElement parses an individual element from a JSON map.
+func (p *ElementParser) ParseIndividualElement(elemMap map[string]interface{}) *spdx.IndividualElement {
+	return &spdx.IndividualElement{
+		Element: p.ParseElement(elemMap),
+	}
+}
+
+// ParseIndividualLicensingInfo parses individual licensing info from a JSON map.
+func (p *ElementParser) ParseIndividualLicensingInfo(elemMap map[string]interface{}) *spdx.IndividualLicensingInfo {
+	return &spdx.IndividualLicensingInfo{
+		AnyLicenseInfo: spdx.AnyLicenseInfo{
+			Element: p.ParseElement(elemMap),
+		},
 	}
 }
 
@@ -157,20 +207,20 @@ func (p *ElementParser) ParseLicenseInfo(elemMap map[string]interface{}) *spdx.A
 	if elemMap == nil {
 		return nil
 	}
-	
+
 	// Check for license expression field (simplelicensing_licenseExpression)
 	licenseExpression := p.h.GetString(elemMap, "simplelicensing_licenseExpression")
 	if licenseExpression == "" {
 		// Also check for the standard field name
 		licenseExpression = p.h.GetString(elemMap, "licenseExpression")
 	}
-	
+
 	// If we have a license expression, use it as the name
 	name := p.h.GetString(elemMap, "name")
 	if name == "" && licenseExpression != "" {
 		name = licenseExpression
 	}
-	
+
 	return &spdx.AnyLicenseInfo{
 		Element: spdx.Element{
 			SpdxID:  p.h.GetString(elemMap, "spdxId"),
@@ -252,8 +302,7 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 
 	// Software Artifact fields
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
-		purpose := spdx.SoftwarePurpose(pp)
-		pkg.PrimaryPurpose = &purpose
+		pkg.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
 	if ap := p.h.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
@@ -288,13 +337,11 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 	file.AttributionText = p.h.GetStringSlice(elemMap, "software_attributionText")
 
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
-		purpose := spdx.SoftwarePurpose(pp)
-		file.PrimaryPurpose = &purpose
+		file.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
 	if fk, ok := elemMap["software_fileKind"].(string); ok {
-		fileKind := spdx.FileKindType(fk)
-		file.FileKind = &fileKind
+		file.FileKind = spdx.FileKindType(fk)
 	}
 
 	return file
@@ -345,8 +392,7 @@ func (p *ElementParser) ParseRelationship(elemMap map[string]interface{}) *spdx.
 	}
 
 	if comp, ok := elemMap["completeness"].(string); ok {
-		completeness := spdx.RelationshipCompleteness(comp)
-		rel.Completeness = &completeness
+		rel.Completeness = spdx.RelationshipCompleteness(comp)
 	}
 
 	rel.StartTime = p.h.GetTime(elemMap, "startTime")

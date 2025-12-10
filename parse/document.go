@@ -8,17 +8,21 @@ type Document struct {
 	Graph   []spdx.Element `json:"-"` // Parsed elements from @graph
 
 	// Parsed and categorized elements
-	SpdxDocument  *spdx.SpdxDocument
-	Packages      []*spdx.Package
-	Files         []*spdx.File
-	Snippets      []*spdx.Snippet
-	Relationships []*spdx.Relationship
-	Annotations   []*spdx.Annotation
-	ExternalMaps  []*spdx.ExternalMap
-	CreationInfo  *spdx.CreationInfo
-	Agents        []*spdx.Agent
-	Tools         []*spdx.Tool
-	Licenses      []*spdx.AnyLicenseInfo
+	SpdxDocument             *spdx.SpdxDocument
+	Packages                 []*spdx.Package
+	Files                    []*spdx.File
+	Snippets                 []*spdx.Snippet
+	Relationships            []*spdx.Relationship
+	Annotations              []*spdx.Annotation
+	ExternalMaps             []*spdx.ExternalMap
+	CreationInfo             *spdx.CreationInfo
+	Organizations            []*spdx.Organization
+	Persons                  []*spdx.Person
+	SoftwareAgents           []*spdx.SoftwareAgent
+	Tools                    []*spdx.Tool
+	Licenses                 []*spdx.AnyLicenseInfo
+	IndividualElements       []*spdx.IndividualElement
+	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
 
 	// All elements indexed by SPDX ID
 	ElementsByID map[string]interface{}
@@ -28,11 +32,13 @@ type Document struct {
 	RelationshipsToIndex   map[string][]*spdx.Relationship
 
 	// Element type indexes for O(1) lookups
-	PackagesByID map[string]*spdx.Package
-	FilesByID    map[string]*spdx.File
-	AgentsByID   map[string]*spdx.Agent
-	ToolsByID    map[string]*spdx.Tool
-	LicensesByID map[string]*spdx.AnyLicenseInfo
+	PackagesByID       map[string]*spdx.Package
+	FilesByID          map[string]*spdx.File
+	OrganizationsByID  map[string]*spdx.Organization
+	PersonsByID        map[string]*spdx.Person
+	SoftwareAgentsByID map[string]*spdx.SoftwareAgent
+	ToolsByID          map[string]*spdx.Tool
+	LicensesByID       map[string]*spdx.AnyLicenseInfo
 }
 
 // GetName returns the document name
@@ -331,13 +337,14 @@ func (d *Document) GetAnnotationsFor(spdxID string) []*spdx.Annotation {
 // GetAgentByID returns an agent by its SPDX ID.
 // This is useful for resolving agent references in CreationInfo.
 func (d *Document) GetAgentByID(spdxID string) *spdx.Agent {
-	if d.AgentsByID != nil {
-		return d.AgentsByID[spdxID]
+	if org, ok := d.OrganizationsByID[spdxID]; ok {
+		return &org.Agent
 	}
-	for _, agent := range d.Agents {
-		if agent.SpdxID == spdxID {
-			return agent
-		}
+	if person, ok := d.PersonsByID[spdxID]; ok {
+		return &person.Agent
+	}
+	if sa, ok := d.SoftwareAgentsByID[spdxID]; ok {
+		return &sa.Agent
 	}
 	return nil
 }
@@ -392,7 +399,7 @@ func (d *Document) GetContainedPackagesFor(spdxID string) []*spdx.Package {
 type ContainmentInfo struct {
 	Files        []*spdx.File
 	Packages     []*spdx.Package
-	Completeness *spdx.RelationshipCompleteness
+	Completeness spdx.RelationshipCompleteness
 }
 
 // GetContainmentFor returns containment info including files, packages, and completeness.
@@ -401,7 +408,7 @@ func (d *Document) GetContainmentFor(spdxID string) *ContainmentInfo {
 	for _, rel := range d.GetRelationshipsFrom(spdxID) {
 		if rel.IsContainment() {
 			// Capture completeness from the first containment relationship
-			if info.Completeness == nil && rel.Completeness != nil {
+			if info.Completeness == "" && rel.Completeness != "" {
 				info.Completeness = rel.Completeness
 			}
 			for _, to := range rel.To {

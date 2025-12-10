@@ -26,6 +26,7 @@ const (
 	TypePositiveIntegerRange    ElementType = "PositiveIntegerRange"
 	TypeIntegrityMethod         ElementType = "IntegrityMethod"
 	TypePackageVerificationCode ElementType = "PackageVerificationCode"
+	TypeIndividualElement       ElementType = "IndividualElement"
 )
 
 // Software-related element types.
@@ -39,16 +40,17 @@ const (
 
 // Licensing-related element types.
 const (
-	TypeAnyLicenseInfo             ElementType = "AnyLicenseInfo"
-	TypeLicense                    ElementType = "License"
-	TypeListedLicense              ElementType = "ListedLicense"
-	TypeCustomLicense              ElementType = "CustomLicense"
-	TypeLicenseExpression          ElementType = "LicenseExpression"
+	TypeAnyLicenseInfo            ElementType = "AnyLicenseInfo"
+	TypeLicense                   ElementType = "License"
+	TypeListedLicense             ElementType = "ListedLicense"
+	TypeCustomLicense             ElementType = "CustomLicense"
+	TypeLicenseExpression         ElementType = "LicenseExpression"
 	TypeSimpleLicensingExpression ElementType = "simplelicensing_LicenseExpression"
-	TypeConjunctiveLicenseSet      ElementType = "ConjunctiveLicenseSet"
-	TypeDisjunctiveLicenseSet      ElementType = "DisjunctiveLicenseSet"
-	TypeWithAdditionOperator       ElementType = "WithAdditionOperator"
-	TypeLicenseAddition            ElementType = "LicenseAddition"
+	TypeConjunctiveLicenseSet     ElementType = "ConjunctiveLicenseSet"
+	TypeDisjunctiveLicenseSet     ElementType = "DisjunctiveLicenseSet"
+	TypeWithAdditionOperator      ElementType = "WithAdditionOperator"
+	TypeLicenseAddition           ElementType = "LicenseAddition"
+	TypeIndividualLicensingInfo   ElementType = "IndividualLicensingInfo"
 )
 
 // Security-related element types.
