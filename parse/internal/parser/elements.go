@@ -145,6 +145,36 @@ func (p *ElementParser) parseSupportLevel(elemList []interface{}) []spdx.Support
 	return supportTypes
 }
 
+// ParseSbom parses an Sbom from a JSON map.
+func (p *ElementParser) ParseSbom(elemMap map[string]interface{}) *spdx.Sbom {
+	sbom := &spdx.Sbom{}
+	// Sbom embeds Bom, so parse embedded Bom fields
+	sbom.Bom = *p.ParseBom(elemMap)
+
+	if sbt := p.h.GetSlice(elemMap, "sbomType"); sbt != nil {
+		for _, typ := range sbt {
+			if ts, ok := typ.(string); ok {
+				sbom.SbomType = append(sbom.SbomType, spdx.SbomType(ts))
+			}
+		}
+	}
+	return sbom
+}
+
+// ParseContentIdentifier parses a ContentIdentifier from a JSON map.
+func (p *ElementParser) ParseContentIdentifier(elemMap map[string]interface{}) *spdx.ContentIdentifier {
+	ci := &spdx.ContentIdentifier{}
+	// ContentIdentifier embeds IntegrityMethod, so parse embedded IntegrityMethod fields
+	ci.IntegrityMethod = p.ParseIntegrityMethod(elemMap)
+
+	if cit, ok := elemMap["contentIdentifierType"].(string); ok {
+		ci.ContentIdentifierType = spdx.ContentIdentifierType(cit)
+	}
+	ci.ContentIdentifierValue = p.h.GetString(elemMap, "contentIdentifierValue")
+
+	return ci
+}
+
 // ParseAgent parses an agent from a JSON map.
 func (p *ElementParser) ParseAgent(elemMap map[string]interface{}) *spdx.Agent {
 	return &spdx.Agent{
@@ -380,6 +410,15 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 	// Element
 	pkg.Element = p.ParseElement(elemMap)
 
+	// Parse ContentIdentifier (from embedded SoftwareArtifact)
+	if cids := p.h.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+		for _, ci := range cids {
+			if ciMap, ok := ci.(map[string]interface{}); ok {
+				pkg.ContentIdentifier = append(pkg.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
+			}
+		}
+	}
+
 	return pkg
 }
 
@@ -402,6 +441,15 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 		file.FileKind = spdx.FileKindType(fk)
 	}
 
+	// Parse ContentIdentifier (from embedded SoftwareArtifact)
+	if cids := p.h.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+		for _, ci := range cids {
+			if ciMap, ok := ci.(map[string]interface{}); ok {
+				file.ContentIdentifier = append(file.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
+			}
+		}
+	}
+
 	return file
 }
 
@@ -420,6 +468,15 @@ func (p *ElementParser) ParseSnippet(elemMap map[string]interface{}) *spdx.Snipp
 
 	if lr := p.h.GetMap(elemMap, "software_lineRange"); lr != nil {
 		snippet.LineRange = p.ParseRange(lr)
+	}
+
+	// Parse ContentIdentifier (from embedded SoftwareArtifact)
+	if cids := p.h.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+		for _, ci := range cids {
+			if ciMap, ok := ci.(map[string]interface{}); ok {
+				snippet.ContentIdentifier = append(snippet.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
+			}
+		}
 	}
 
 	return snippet
@@ -471,7 +528,6 @@ func (p *ElementParser) ParseLifecycleScopedRelationship(elemMap map[string]inte
 
 	return rel
 }
-
 
 // ParseAnnotation parses an annotation from a JSON map.
 func (p *ElementParser) ParseAnnotation(elemMap map[string]interface{}) *spdx.Annotation {
@@ -526,8 +582,8 @@ func (p *ElementParser) ParseHash(elemMap map[string]interface{}) *spdx.Hash {
 // ParsePackageVerificationCode parses a package verification code from a JSON map.
 func (p *ElementParser) ParsePackageVerificationCode(elemMap map[string]interface{}) *spdx.PackageVerificationCode {
 	pvc := &spdx.PackageVerificationCode{
-		IntegrityMethod:                 p.ParseIntegrityMethod(elemMap),
-		HashValue:                       p.h.GetString(elemMap, "hashValue"),
+		IntegrityMethod:                     p.ParseIntegrityMethod(elemMap),
+		HashValue:                           p.h.GetString(elemMap, "hashValue"),
 		PackageVerificationCodeExcludedFile: p.h.GetStringSlice(elemMap, "packageVerificationCodeExcludedFile"),
 	}
 	if alg, ok := elemMap["algorithm"].(string); ok {

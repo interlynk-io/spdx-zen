@@ -212,6 +212,10 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 	case TypeSoftwareSnippet:
 		doc.Snippets = append(doc.Snippets, r.parser.ParseSnippet(elemMap))
 
+	case TypeSoftwareSbom:
+		sbom := r.parser.ParseSbom(elemMap)
+		doc.Boms = append(doc.Boms, &sbom.Bom)
+
 	case TypeRelationship:
 		doc.Relationships = append(doc.Relationships, r.parser.ParseRelationship(elemMap))
 	case TypeLifecycleScopedRelationship:
