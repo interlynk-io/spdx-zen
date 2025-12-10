@@ -214,6 +214,8 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 
 	case TypeRelationship:
 		doc.Relationships = append(doc.Relationships, r.parser.ParseRelationship(elemMap))
+	case TypeLifecycleScopedRelationship:
+		doc.LifecycleScopedRelationships = append(doc.LifecycleScopedRelationships, r.parser.ParseLifecycleScopedRelationship(elemMap))
 
 	case TypeAnnotation:
 		doc.Annotations = append(doc.Annotations, r.parser.ParseAnnotation(elemMap))

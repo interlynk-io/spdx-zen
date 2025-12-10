@@ -401,6 +401,20 @@ func (p *ElementParser) ParseRelationship(elemMap map[string]interface{}) *spdx.
 	return rel
 }
 
+// ParseLifecycleScopedRelationship parses a lifecycle-scoped relationship from a JSON map.
+func (p *ElementParser) ParseLifecycleScopedRelationship(elemMap map[string]interface{}) *spdx.LifecycleScopedRelationship {
+	rel := &spdx.LifecycleScopedRelationship{
+		Relationship: *p.ParseRelationship(elemMap),
+	}
+
+	if scope, ok := elemMap["scope"].(string); ok {
+		rel.Scope = spdx.LifecycleScopeType(scope)
+	}
+
+	return rel
+}
+
+
 // ParseAnnotation parses an annotation from a JSON map.
 func (p *ElementParser) ParseAnnotation(elemMap map[string]interface{}) *spdx.Annotation {
 	ann := &spdx.Annotation{

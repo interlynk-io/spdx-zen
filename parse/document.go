@@ -11,8 +11,9 @@ type Document struct {
 	SpdxDocument             *spdx.SpdxDocument
 	Packages                 []*spdx.Package
 	Files                    []*spdx.File
-	Snippets                 []*spdx.Snippet
+	Snippets                   []*spdx.Snippet
 	Relationships            []*spdx.Relationship
+	LifecycleScopedRelationships []*spdx.LifecycleScopedRelationship
 	Annotations              []*spdx.Annotation
 	ExternalMaps             []*spdx.ExternalMap
 	CreationInfo             *spdx.CreationInfo

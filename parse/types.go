@@ -8,6 +8,7 @@ const (
 	TypeElement                 ElementType = "Element"
 	TypeSpdxDocument            ElementType = "SpdxDocument"
 	TypeRelationship            ElementType = "Relationship"
+	TypeLifecycleScopedRelationship ElementType = "LifecycleScopedRelationship"
 	TypeAnnotation              ElementType = "Annotation"
 	TypeBundle                  ElementType = "Bundle"
 	TypeExternalMap             ElementType = "ExternalMap"
@@ -89,7 +90,7 @@ func (t ElementType) String() string {
 // IsCore returns true if this is a core SPDX element type.
 func (t ElementType) IsCore() bool {
 	switch t {
-	case TypeElement, TypeSpdxDocument, TypeRelationship, TypeAnnotation,
+	case TypeElement, TypeSpdxDocument, TypeRelationship, TypeLifecycleScopedRelationship, TypeAnnotation,
 		TypeBundle, TypeExternalMap, TypeExternalIdentifier, TypeExternalRef,
 		TypeHash, TypeCreationInfo, TypeAgent, TypePerson, TypeOrganization,
 		TypeSoftwareAgent, TypeTool, TypeArtifact, TypeNamespaceMap,
