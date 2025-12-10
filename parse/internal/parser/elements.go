@@ -9,35 +9,35 @@ import (
 // ElementParser provides parsing methods for SPDX elements.
 // It converts raw JSON maps into typed SPDX model structs.
 type ElementParser struct {
-	h *Helpers
+	H *Helpers
 }
 
 // NewElementParser creates a new ElementParser.
 func NewElementParser() *ElementParser {
 	return &ElementParser{
-		h: NewHelpers(),
+		H: NewHelpers(),
 	}
 }
 
 // ParseElement parses common element fields from a JSON map.
 func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Element {
 	elem := spdx.Element{
-		SpdxID:      p.h.GetString(elemMap, "spdxId"),
-		Name:        p.h.GetString(elemMap, "name"),
-		Summary:     p.h.GetString(elemMap, "summary"),
-		Description: p.h.GetString(elemMap, "description"),
-		Comment:     p.h.GetString(elemMap, "comment"),
+		SpdxID:      p.H.GetString(elemMap, "spdxId"),
+		Name:        p.H.GetString(elemMap, "name"),
+		Summary:     p.H.GetString(elemMap, "summary"),
+		Description: p.H.GetString(elemMap, "description"),
+		Comment:     p.H.GetString(elemMap, "comment"),
 	}
 
 	// Parse creationInfo if it's an embedded object
-	if ciMap := p.h.GetMap(elemMap, "creationInfo"); ciMap != nil {
+	if ciMap := p.H.GetMap(elemMap, "creationInfo"); ciMap != nil {
 		if ci := p.ParseCreationInfo(ciMap); ci != nil {
 			elem.CreationInfo = *ci
 		}
 	}
 
 	// Parse externalIdentifier
-	if ei := p.h.GetSlice(elemMap, "externalIdentifier"); ei != nil {
+	if ei := p.H.GetSlice(elemMap, "externalIdentifier"); ei != nil {
 		for _, e := range ei {
 			if eMap, ok := e.(map[string]interface{}); ok {
 				elem.ExternalIdentifier = append(elem.ExternalIdentifier, *p.ParseExternalIdentifier(eMap))
@@ -55,13 +55,13 @@ func (p *ElementParser) ParseCreationInfo(elemMap map[string]interface{}) *spdx.
 	}
 
 	ci := &spdx.CreationInfo{
-		SpecVersion: p.h.GetString(elemMap, "specVersion"),
-		Comment:     p.h.GetString(elemMap, "comment"),
-		Created:     p.h.GetTime(elemMap, "created"),
+		SpecVersion: p.H.GetString(elemMap, "specVersion"),
+		Comment:     p.H.GetString(elemMap, "comment"),
+		Created:     p.H.GetTime(elemMap, "created"),
 	}
 
 	// CreatedBy is a list of Agent references
-	if cb := p.h.GetSlice(elemMap, "createdBy"); cb != nil {
+	if cb := p.H.GetSlice(elemMap, "createdBy"); cb != nil {
 		for _, a := range cb {
 			if as, ok := a.(string); ok {
 				ci.CreatedBy = append(ci.CreatedBy, spdx.Agent{Element: spdx.Element{SpdxID: as}})
@@ -70,7 +70,7 @@ func (p *ElementParser) ParseCreationInfo(elemMap map[string]interface{}) *spdx.
 	}
 
 	// CreatedUsing is a list of Tool references
-	if cu := p.h.GetSlice(elemMap, "createdUsing"); cu != nil {
+	if cu := p.H.GetSlice(elemMap, "createdUsing"); cu != nil {
 		for _, t := range cu {
 			if ts, ok := t.(string); ok {
 				ci.CreatedUsing = append(ci.CreatedUsing, spdx.Tool{Element: spdx.Element{SpdxID: ts}})
@@ -84,10 +84,10 @@ func (p *ElementParser) ParseCreationInfo(elemMap map[string]interface{}) *spdx.
 // ParseExternalIdentifier parses an external identifier from a JSON map.
 func (p *ElementParser) ParseExternalIdentifier(elemMap map[string]interface{}) *spdx.ExternalIdentifier {
 	ei := &spdx.ExternalIdentifier{
-		Identifier:        p.h.GetString(elemMap, "identifier"),
-		Comment:           p.h.GetString(elemMap, "comment"),
-		IdentifierLocator: p.h.GetStringSlice(elemMap, "identifierLocator"),
-		IssuingAuthority:  p.h.GetString(elemMap, "issuingAuthority"),
+		Identifier:        p.H.GetString(elemMap, "identifier"),
+		Comment:           p.H.GetString(elemMap, "comment"),
+		IdentifierLocator: p.H.GetStringSlice(elemMap, "identifierLocator"),
+		IssuingAuthority:  p.H.GetString(elemMap, "issuingAuthority"),
 	}
 
 	if eit, ok := elemMap["externalIdentifierType"].(string); ok {
@@ -100,7 +100,7 @@ func (p *ElementParser) ParseExternalIdentifier(elemMap map[string]interface{}) 
 // ParseArtifact parses artifact fields from a JSON map.
 func (p *ElementParser) ParseArtifact(elemMap map[string]interface{}) *spdx.Artifact {
 	artifact := spdx.Artifact{
-		StandardName: p.h.GetStringSlice(elemMap, "standardName"),
+		StandardName: p.H.GetStringSlice(elemMap, "standardName"),
 	}
 
 	// Parse suppliedBy if present
@@ -113,15 +113,15 @@ func (p *ElementParser) ParseArtifact(elemMap map[string]interface{}) *spdx.Arti
 	}
 
 	// Parse supportLevel if present
-	if sl := p.h.GetSlice(elemMap, "supportLevel"); sl != nil {
+	if sl := p.H.GetSlice(elemMap, "supportLevel"); sl != nil {
 		artifact.SupportLevel = p.parseSupportLevel(sl)
 	}
 
-	artifact.BuiltTime = p.h.GetTime(elemMap, "builtTime")
-	artifact.ReleaseTime = p.h.GetTime(elemMap, "releaseTime")
-	artifact.ValidUntilTime = p.h.GetTime(elemMap, "validUntilTime")
+	artifact.BuiltTime = p.H.GetTime(elemMap, "builtTime")
+	artifact.ReleaseTime = p.H.GetTime(elemMap, "releaseTime")
+	artifact.ValidUntilTime = p.H.GetTime(elemMap, "validUntilTime")
 
-	if vu := p.h.GetSlice(elemMap, "originatedBy"); vu != nil {
+	if vu := p.H.GetSlice(elemMap, "originatedBy"); vu != nil {
 		for _, v := range vu {
 			if vMap, ok := v.(map[string]interface{}); ok {
 				artifact.OriginatedBy = append(artifact.OriginatedBy, *p.ParseAgent(vMap))
@@ -151,7 +151,7 @@ func (p *ElementParser) ParseSbom(elemMap map[string]interface{}) *spdx.Sbom {
 	// Sbom embeds Bom, so parse embedded Bom fields
 	sbom.Bom = *p.ParseBom(elemMap)
 
-	if sbt := p.h.GetSlice(elemMap, "sbomType"); sbt != nil {
+	if sbt := p.H.GetSlice(elemMap, "sbomType"); sbt != nil {
 		for _, typ := range sbt {
 			if ts, ok := typ.(string); ok {
 				sbom.SbomType = append(sbom.SbomType, spdx.SbomType(ts))
@@ -170,7 +170,7 @@ func (p *ElementParser) ParseContentIdentifier(elemMap map[string]interface{}) *
 	if cit, ok := elemMap["contentIdentifierType"].(string); ok {
 		ci.ContentIdentifierType = spdx.ContentIdentifierType(cit)
 	}
-	ci.ContentIdentifierValue = p.h.GetString(elemMap, "contentIdentifierValue")
+	ci.ContentIdentifierValue = p.H.GetString(elemMap, "contentIdentifierValue")
 
 	return ci
 }
@@ -179,9 +179,9 @@ func (p *ElementParser) ParseContentIdentifier(elemMap map[string]interface{}) *
 func (p *ElementParser) ParseVulnerability(elemMap map[string]interface{}) *spdx.Vulnerability {
 	vuln := &spdx.Vulnerability{}
 	vuln.Artifact = *p.ParseArtifact(elemMap) // Vulnerability embeds Artifact
-	vuln.PublishedTime = p.h.GetTime(elemMap, "publishedTime")
-	vuln.ModifiedTime = p.h.GetTime(elemMap, "modifiedTime")
-	vuln.WithdrawnTime = p.h.GetTime(elemMap, "withdrawnTime")
+	vuln.PublishedTime = p.H.GetTime(elemMap, "publishedTime")
+	vuln.ModifiedTime = p.H.GetTime(elemMap, "modifiedTime")
+	vuln.WithdrawnTime = p.H.GetTime(elemMap, "withdrawnTime")
 	return vuln
 }
 
@@ -199,7 +199,7 @@ func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]inter
 		}
 	}
 
-	vulnRel.PublishedTime = p.h.GetTime(elemMap, "publishedTime")
+	vulnRel.PublishedTime = p.H.GetTime(elemMap, "publishedTime")
 
 	// Parse suppliedBy if present
 	if sb, ok := elemMap["suppliedBy"]; ok {
@@ -210,8 +210,8 @@ func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]inter
 		}
 	}
 
-	vulnRel.ModifiedTime = p.h.GetTime(elemMap, "modifiedTime")
-	vulnRel.WithdrawnTime = p.h.GetTime(elemMap, "withdrawnTime")
+	vulnRel.ModifiedTime = p.H.GetTime(elemMap, "modifiedTime")
+	vulnRel.WithdrawnTime = p.H.GetTime(elemMap, "withdrawnTime")
 	return &vulnRel
 }
 
@@ -221,8 +221,8 @@ func (p *ElementParser) ParseVexVulnAssessmentRelationship(elemMap map[string]in
 	var vexVulnRel spdx.VexVulnAssessmentRelationship
 	vexVulnRel.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // VexVulnAssessmentRelationship embeds VulnAssessmentRelationship
 
-	vexVulnRel.VexVersion = p.h.GetString(elemMap, "vexVersion")
-	vexVulnRel.StatusNotes = p.h.GetString(elemMap, "statusNotes")
+	vexVulnRel.VexVersion = p.H.GetString(elemMap, "vexVersion")
+	vexVulnRel.StatusNotes = p.H.GetString(elemMap, "statusNotes")
 	return &vexVulnRel
 }
 
@@ -231,8 +231,8 @@ func (p *ElementParser) ParseCvssV2VulnAssessmentRelationship(elemMap map[string
 	cvss2 := &spdx.CvssV2VulnAssessmentRelationship{}
 	cvss2.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
 
-	cvss2.Score = p.h.GetFloat(elemMap, "score")
-	cvss2.VectorString = p.h.GetString(elemMap, "vectorString")
+	cvss2.Score = p.H.GetFloat(elemMap, "score")
+	cvss2.VectorString = p.H.GetString(elemMap, "vectorString")
 	return cvss2
 }
 
@@ -241,11 +241,11 @@ func (p *ElementParser) ParseCvssV3VulnAssessmentRelationship(elemMap map[string
 	cvss3 := &spdx.CvssV3VulnAssessmentRelationship{}
 	cvss3.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
 
-	cvss3.Score = p.h.GetFloat(elemMap, "score")
+	cvss3.Score = p.H.GetFloat(elemMap, "score")
 	if sev, ok := elemMap["severity"].(string); ok {
 		cvss3.Severity = spdx.CvssSeverityType(sev)
 	}
-	cvss3.VectorString = p.h.GetString(elemMap, "vectorString")
+	cvss3.VectorString = p.H.GetString(elemMap, "vectorString")
 	return cvss3
 }
 
@@ -254,11 +254,11 @@ func (p *ElementParser) ParseCvssV4VulnAssessmentRelationship(elemMap map[string
 	cvss4 := &spdx.CvssV4VulnAssessmentRelationship{}
 	cvss4.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
 
-	cvss4.Score = p.h.GetFloat(elemMap, "score")
+	cvss4.Score = p.H.GetFloat(elemMap, "score")
 	if sev, ok := elemMap["severity"].(string); ok {
 		cvss4.Severity = spdx.CvssSeverityType(sev)
 	}
-	cvss4.VectorString = p.h.GetString(elemMap, "vectorString")
+	cvss4.VectorString = p.H.GetString(elemMap, "vectorString")
 	return cvss4
 }
 
@@ -267,8 +267,8 @@ func (p *ElementParser) ParseEpssVulnAssessmentRelationship(elemMap map[string]i
 	epss := &spdx.EpssVulnAssessmentRelationship{}
 	epss.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
 
-	epss.Probability = p.h.GetFloat(elemMap, "probability")
-	epss.Percentile = p.h.GetFloat(elemMap, "percentile")
+	epss.Probability = p.H.GetFloat(elemMap, "probability")
+	epss.Percentile = p.H.GetFloat(elemMap, "percentile")
 	return epss
 }
 
@@ -291,8 +291,8 @@ func (p *ElementParser) ParseExploitCatalogVulnAssessmentRelationship(elemMap ma
 	if ct, ok := elemMap["catalogType"].(string); ok {
 		ec.CatalogType = spdx.ExploitCatalogType(ct)
 	}
-	ec.Exploited = p.h.GetBool(elemMap, "exploited")
-	ec.Locator = p.h.GetString(elemMap, "locator")
+	ec.Exploited = p.H.GetBool(elemMap, "exploited")
+	ec.Locator = p.H.GetString(elemMap, "locator")
 	return ec
 }
 
@@ -301,8 +301,8 @@ func (p *ElementParser) ParseVexAffectedVulnAssessmentRelationship(elemMap map[s
 	vexAffected := &spdx.VexAffectedVulnAssessmentRelationship{}
 	vexAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
 
-	vexAffected.ActionStatement = p.h.GetString(elemMap, "actionStatement")
-	vexAffected.ActionStatementTime = p.h.GetTime(elemMap, "actionStatementTime")
+	vexAffected.ActionStatement = p.H.GetString(elemMap, "actionStatement")
+	vexAffected.ActionStatementTime = p.H.GetTime(elemMap, "actionStatementTime")
 	return vexAffected
 }
 
@@ -321,8 +321,8 @@ func (p *ElementParser) ParseVexNotAffectedVulnAssessmentRelationship(elemMap ma
 	if jt, ok := elemMap["justificationType"].(string); ok {
 		vexNotAffected.JustificationType = spdx.VexJustificationType(jt)
 	}
-	vexNotAffected.ImpactStatement = p.h.GetString(elemMap, "impactStatement")
-	vexNotAffected.ImpactStatementTime = p.h.GetTime(elemMap, "impactStatementTime")
+	vexNotAffected.ImpactStatement = p.H.GetString(elemMap, "impactStatement")
+	vexNotAffected.ImpactStatementTime = p.H.GetTime(elemMap, "impactStatementTime")
 	return vexNotAffected
 }
 
@@ -377,8 +377,8 @@ func (p *ElementParser) ParseTool(elemMap map[string]interface{}) *spdx.Tool {
 // ParseDictionaryEntry parses a dictionary entry from a JSON map.
 func (p *ElementParser) ParseDictionaryEntry(elemMap map[string]interface{}) *spdx.DictionaryEntry {
 	return &spdx.DictionaryEntry{
-		Key:   p.h.GetString(elemMap, "key"),
-		Value: p.h.GetString(elemMap, "value"),
+		Key:   p.H.GetString(elemMap, "key"),
+		Value: p.H.GetString(elemMap, "value"),
 	}
 }
 
@@ -398,46 +398,212 @@ func (p *ElementParser) ParseIndividualLicensingInfo(elemMap map[string]interfac
 	}
 }
 
-// ParseLicenseInfo parses license information from a JSON map.
-func (p *ElementParser) ParseLicenseInfo(elemMap map[string]interface{}) *spdx.AnyLicenseInfo {
+// ParseAnyLicenseInfo parses a generic AnyLicenseInfo from a JSON map.
+func (p *ElementParser) ParseAnyLicenseInfo(elemMap map[string]interface{}) *spdx.AnyLicenseInfo {
 	if elemMap == nil {
 		return nil
 	}
-
-	// Check for license expression field (simplelicensing_licenseExpression)
-	licenseExpression := p.h.GetString(elemMap, "simplelicensing_licenseExpression")
-	if licenseExpression == "" {
-		// Also check for the standard field name
-		licenseExpression = p.h.GetString(elemMap, "licenseExpression")
-	}
-
-	// If we have a license expression, use it as the name
-	name := p.h.GetString(elemMap, "name")
-	if name == "" && licenseExpression != "" {
-		name = licenseExpression
-	}
-
 	return &spdx.AnyLicenseInfo{
-		Element: spdx.Element{
-			SpdxID:  p.h.GetString(elemMap, "spdxId"),
-			Name:    name,
-			Comment: p.h.GetString(elemMap, "comment"),
-		},
+		Element: p.ParseElement(elemMap),
 	}
+}
+
+// ParseLicense parses a License from a JSON map.
+func (p *ElementParser) ParseLicense(elemMap map[string]interface{}) *spdx.License {
+	if elemMap == nil {
+		return nil
+	}
+	lic := &spdx.License{}
+	lic.ExtendableLicense = *p.ParseExtendableLicense(elemMap)
+	lic.LicenseText = p.H.GetString(elemMap, "licenseText")
+	lic.IsDeprecatedLicenseId = p.H.GetBool(elemMap, "isDeprecatedLicenseId")
+	lic.IsFsfLibre = p.H.GetBool(elemMap, "isFsfLibre")
+	lic.IsOsiApproved = p.H.GetBool(elemMap, "isOsiApproved")
+	lic.LicenseXml = p.H.GetString(elemMap, "licenseXml")
+	lic.ObsoletedBy = p.H.GetString(elemMap, "obsoletedBy")
+	lic.SeeAlso = p.H.GetStringSlice(elemMap, "seeAlso")
+	lic.StandardLicenseHeader = p.H.GetString(elemMap, "standardLicenseHeader")
+	lic.StandardLicenseTemplate = p.H.GetString(elemMap, "standardLicenseTemplate")
+	return lic
+}
+
+// ParseLicenseAddition parses a LicenseAddition from a JSON map.
+func (p *ElementParser) ParseLicenseAddition(elemMap map[string]interface{}) *spdx.LicenseAddition {
+	if elemMap == nil {
+		return nil
+	}
+	la := &spdx.LicenseAddition{}
+	la.Element = p.ParseElement(elemMap)
+	la.AdditionText = p.H.GetString(elemMap, "additionText")
+	la.IsDeprecatedAdditionId = p.H.GetBool(elemMap, "isDeprecatedAdditionId")
+	la.LicenseXml = p.H.GetString(elemMap, "licenseXml")
+	la.ObsoletedBy = p.H.GetString(elemMap, "obsoletedBy")
+	la.SeeAlso = p.H.GetStringSlice(elemMap, "seeAlso")
+	la.StandardAdditionTemplate = p.H.GetString(elemMap, "standardAdditionTemplate")
+	return la
+}
+
+// ParseExtendableLicense parses an ExtendableLicense from a JSON map.
+func (p *ElementParser) ParseExtendableLicense(elemMap map[string]interface{}) *spdx.ExtendableLicense {
+	if elemMap == nil {
+		return nil
+	}
+	el := &spdx.ExtendableLicense{}
+	el.AnyLicenseInfo = *p.ParseAnyLicenseInfo(elemMap)
+	return el
+}
+
+// ParseConjunctiveLicenseSet parses a ConjunctiveLicenseSet from a JSON map.
+func (p *ElementParser) ParseConjunctiveLicenseSet(elemMap map[string]interface{}) *spdx.ConjunctiveLicenseSet {
+	if elemMap == nil {
+		return nil
+	}
+	cls := &spdx.ConjunctiveLicenseSet{}
+	cls.AnyLicenseInfo = *p.ParseAnyLicenseInfo(elemMap)
+	if members := p.H.GetSlice(elemMap, "member"); members != nil {
+		for _, member := range members {
+			if mMap, ok := member.(map[string]interface{}); ok {
+				cls.Member = append(cls.Member, *p.ParseAnyLicenseInfo(mMap))
+			}
+		}
+	}
+	return cls
+}
+
+// ParseCustomLicense parses a CustomLicense from a JSON map.
+func (p *ElementParser) ParseCustomLicense(elemMap map[string]interface{}) *spdx.CustomLicense {
+	if elemMap == nil {
+		return nil
+	}
+	cl := &spdx.CustomLicense{}
+	cl.License = *p.ParseLicense(elemMap)
+	return cl
+}
+
+// ParseCustomLicenseAddition parses a CustomLicenseAddition from a JSON map.
+func (p *ElementParser) ParseCustomLicenseAddition(elemMap map[string]interface{}) *spdx.CustomLicenseAddition {
+	if elemMap == nil {
+		return nil
+	}
+	cla := &spdx.CustomLicenseAddition{}
+	cla.LicenseAddition = *p.ParseLicenseAddition(elemMap)
+	return cla
+}
+
+// ParseDisjunctiveLicenseSet parses a DisjunctiveLicenseSet from a JSON map.
+func (p *ElementParser) ParseDisjunctiveLicenseSet(elemMap map[string]interface{}) *spdx.DisjunctiveLicenseSet {
+	if elemMap == nil {
+		return nil
+	}
+	dls := &spdx.DisjunctiveLicenseSet{}
+	dls.AnyLicenseInfo = *p.ParseAnyLicenseInfo(elemMap)
+	if members := p.H.GetSlice(elemMap, "member"); members != nil {
+		for _, member := range members {
+			if mMap, ok := member.(map[string]interface{}); ok {
+				dls.Member = append(dls.Member, *p.ParseAnyLicenseInfo(mMap))
+			}
+		}
+	}
+	return dls
+}
+
+// ParseListedLicense parses a ListedLicense from a JSON map.
+func (p *ElementParser) ParseListedLicense(elemMap map[string]interface{}) *spdx.ListedLicense {
+	if elemMap == nil {
+		return nil
+	}
+	ll := &spdx.ListedLicense{}
+	ll.License = *p.ParseLicense(elemMap)
+	ll.DeprecatedVersion = p.H.GetString(elemMap, "deprecatedVersion")
+	ll.ListVersionAdded = p.H.GetString(elemMap, "listVersionAdded")
+	return ll
+}
+
+// ParseListedLicenseException parses a ListedLicenseException from a JSON map.
+func (p *ElementParser) ParseListedLicenseException(elemMap map[string]interface{}) *spdx.ListedLicenseException {
+	if elemMap == nil {
+		return nil
+	}
+	lle := &spdx.ListedLicenseException{}
+	lle.LicenseAddition = *p.ParseLicenseAddition(elemMap)
+	lle.DeprecatedVersion = p.H.GetString(elemMap, "deprecatedVersion")
+	lle.ListVersionAdded = p.H.GetString(elemMap, "listVersionAdded")
+	return lle
+}
+
+// ParseLicenseExpression parses a LicenseExpression from a JSON map.
+func (p *ElementParser) ParseLicenseExpression(elemMap map[string]interface{}) *spdx.LicenseExpression {
+	if elemMap == nil {
+		return nil
+	}
+	le := &spdx.LicenseExpression{}
+	le.AnyLicenseInfo = *p.ParseAnyLicenseInfo(elemMap)
+	le.LicenseExpression = p.H.GetString(elemMap, "licenseExpression")
+	le.LicenseListVersion = p.H.GetString(elemMap, "licenseListVersion")
+	if customIdToUris := p.H.GetSlice(elemMap, "customIdToUri"); customIdToUris != nil {
+		for _, customIdToUri := range customIdToUris {
+			if cMap, ok := customIdToUri.(map[string]interface{}); ok {
+				le.CustomIdToUri = append(le.CustomIdToUri, *p.ParseDictionaryEntry(cMap))
+			}
+		}
+	}
+	return le
+}
+
+// ParseOrLaterOperator parses an OrLaterOperator from a JSON map.
+func (p *ElementParser) ParseOrLaterOperator(elemMap map[string]interface{}) *spdx.OrLaterOperator {
+	if elemMap == nil {
+		return nil
+	}
+	olo := &spdx.OrLaterOperator{}
+	olo.ExtendableLicense = *p.ParseExtendableLicense(elemMap)
+	// SubjectLicense is embedded but requires special handling as it's a License struct, not a pointer
+	if sl, ok := elemMap["subjectLicense"].(map[string]interface{}); ok {
+		olo.SubjectLicense = *p.ParseLicense(sl)
+	}
+	return olo
+}
+
+// ParseSimpleLicensingText parses a SimpleLicensingText from a JSON map.
+func (p *ElementParser) ParseSimpleLicensingText(elemMap map[string]interface{}) *spdx.SimpleLicensingText {
+	if elemMap == nil {
+		return nil
+	}
+	slt := &spdx.SimpleLicensingText{}
+	slt.Element = p.ParseElement(elemMap)
+	slt.LicenseText = p.H.GetString(elemMap, "licenseText")
+	return slt
+}
+
+// ParseWithAdditionOperator parses a WithAdditionOperator from a JSON map.
+func (p *ElementParser) ParseWithAdditionOperator(elemMap map[string]interface{}) *spdx.WithAdditionOperator {
+	if elemMap == nil {
+		return nil
+	}
+	wao := &spdx.WithAdditionOperator{}
+	wao.AnyLicenseInfo = *p.ParseAnyLicenseInfo(elemMap)
+	// SubjectAddition and SubjectExtendableLicense are embedded but require special handling
+	if sa, ok := elemMap["subjectAddition"].(map[string]interface{}); ok {
+		wao.SubjectAddition = *p.ParseLicenseAddition(sa)
+	}
+	if sel, ok := elemMap["subjectExtendableLicense"].(map[string]interface{}); ok {
+		wao.SubjectExtendableLicense = *p.ParseExtendableLicense(sel)
+	}
+	return wao
 }
 
 // ParseIntegrityMethod parses an integrity method from a JSON map.
 func (p *ElementParser) ParseIntegrityMethod(elemMap map[string]interface{}) spdx.IntegrityMethod {
 	return spdx.IntegrityMethod{
-		Comment: p.h.GetString(elemMap, "comment"),
+		Comment: p.H.GetString(elemMap, "comment"),
 	}
 }
 
 // ParseRange parses a positive integer range from a JSON map.
 func (p *ElementParser) ParseRange(rangeMap map[string]interface{}) *spdx.PositiveIntegerRange {
 	return &spdx.PositiveIntegerRange{
-		BeginIntegerRange: p.h.GetInt(rangeMap, "beginIntegerRange"),
-		EndIntegerRange:   p.h.GetInt(rangeMap, "endIntegerRange"),
+		BeginIntegerRange: p.H.GetInt(rangeMap, "beginIntegerRange"),
+		EndIntegerRange:   p.H.GetInt(rangeMap, "endIntegerRange"),
 	}
 }
 
@@ -456,7 +622,7 @@ func (p *ElementParser) ParseSpdxDocument(elemMap map[string]interface{}) *spdx.
 
 	// Parse namespaceMap
 	doc.NamespaceMap = []spdx.NamespaceMap{}
-	if nsMap := p.h.GetMap(elemMap, "namespaceMap"); nsMap != nil {
+	if nsMap := p.H.GetMap(elemMap, "namespaceMap"); nsMap != nil {
 		for k, v := range nsMap {
 			if vs, ok := v.(string); ok {
 				doc.NamespaceMap = append(doc.NamespaceMap, spdx.NamespaceMap{Prefix: k, Namespace: vs})
@@ -465,7 +631,7 @@ func (p *ElementParser) ParseSpdxDocument(elemMap map[string]interface{}) *spdx.
 	}
 
 	// Parse profileConformance
-	if pc := p.h.GetSlice(elemMap, "profileConformance"); pc != nil {
+	if pc := p.H.GetSlice(elemMap, "profileConformance"); pc != nil {
 		for _, profile := range pc {
 			if ps, ok := profile.(string); ok {
 				doc.ProfileConformance = append(doc.ProfileConformance, spdx.ProfileIdentifierType(ps))
@@ -475,7 +641,7 @@ func (p *ElementParser) ParseSpdxDocument(elemMap map[string]interface{}) *spdx.
 
 	// Parse imports
 	doc.Import = []spdx.ExternalMap{}
-	if imps := p.h.GetSlice(elemMap, "import"); imps != nil {
+	if imps := p.H.GetSlice(elemMap, "import"); imps != nil {
 		for _, imp := range imps {
 			if impMap, ok := imp.(map[string]interface{}); ok {
 				doc.Import = append(doc.Import, *p.ParseExternalMap(impMap))
@@ -492,7 +658,7 @@ func (p *ElementParser) ParseElementCollection(elemMap map[string]interface{}) s
 		Element: p.ParseElement(elemMap),
 	}
 
-	if elems := p.h.GetSlice(elemMap, "element"); elems != nil {
+	if elems := p.H.GetSlice(elemMap, "element"); elems != nil {
 		for _, e := range elems {
 			if es, ok := e.(string); ok {
 				ec.Elements = append(ec.Elements, spdx.Element{SpdxID: es})
@@ -500,7 +666,7 @@ func (p *ElementParser) ParseElementCollection(elemMap map[string]interface{}) s
 		}
 	}
 
-	if rootElems := p.h.GetSlice(elemMap, "rootElement"); rootElems != nil {
+	if rootElems := p.H.GetSlice(elemMap, "rootElement"); rootElems != nil {
 		for _, r := range rootElems {
 			if rs, ok := r.(string); ok {
 				ec.RootElement = append(ec.RootElement, spdx.Element{SpdxID: rs})
@@ -508,7 +674,7 @@ func (p *ElementParser) ParseElementCollection(elemMap map[string]interface{}) s
 		}
 	}
 
-	if pc := p.h.GetSlice(elemMap, "profileConformance"); pc != nil {
+	if pc := p.H.GetSlice(elemMap, "profileConformance"); pc != nil {
 		for _, profile := range pc {
 			if ps, ok := profile.(string); ok {
 				ec.ProfileConformance = append(ec.ProfileConformance, spdx.ProfileIdentifierType(ps))
@@ -523,7 +689,7 @@ func (p *ElementParser) ParseElementCollection(elemMap map[string]interface{}) s
 func (p *ElementParser) ParseBundle(elemMap map[string]interface{}) *spdx.Bundle {
 	bundle := &spdx.Bundle{
 		ElementCollection: p.ParseElementCollection(elemMap),
-		Context:           p.h.GetString(elemMap, "context"),
+		Context:           p.H.GetString(elemMap, "context"),
 	}
 	return bundle
 }
@@ -540,18 +706,18 @@ func (p *ElementParser) ParseBom(elemMap map[string]interface{}) *spdx.Bom {
 func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Package {
 	pkg := &spdx.Package{}
 
-	pkg.DownloadLocation = p.h.GetString(elemMap, "software_downloadLocation")
-	pkg.HomePage = p.h.GetString(elemMap, "software_homePage")
-	pkg.PackageUrl = p.h.GetString(elemMap, "software_packageUrl")
-	pkg.PackageVersion = p.h.GetString(elemMap, "software_packageVersion")
-	pkg.SourceInfo = p.h.GetString(elemMap, "software_sourceInfo")
+	pkg.DownloadLocation = p.H.GetString(elemMap, "software_downloadLocation")
+	pkg.HomePage = p.H.GetString(elemMap, "software_homePage")
+	pkg.PackageUrl = p.H.GetString(elemMap, "software_packageUrl")
+	pkg.PackageVersion = p.H.GetString(elemMap, "software_packageVersion")
+	pkg.SourceInfo = p.H.GetString(elemMap, "software_sourceInfo")
 
 	// Software Artifact fields
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
 		pkg.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
-	if ap := p.h.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
 		for _, purpose := range ap {
 			if ps, ok := purpose.(string); ok {
 				pkg.AdditionalPurpose = append(pkg.AdditionalPurpose, spdx.SoftwarePurpose(ps))
@@ -559,8 +725,8 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 		}
 	}
 
-	pkg.CopyrightText = p.h.GetString(elemMap, "software_copyrightText")
-	pkg.AttributionText = p.h.GetStringSlice(elemMap, "software_attributionText")
+	pkg.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
+	pkg.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
 
 	// Artifact
 	pkg.Artifact = *p.ParseArtifact(elemMap)
@@ -569,7 +735,7 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 	pkg.Element = p.ParseElement(elemMap)
 
 	// Parse ContentIdentifier (from embedded SoftwareArtifact)
-	if cids := p.h.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+	if cids := p.H.GetSlice(elemMap, "contentIdentifier"); cids != nil {
 		for _, ci := range cids {
 			if ciMap, ok := ci.(map[string]interface{}); ok {
 				pkg.ContentIdentifier = append(pkg.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
@@ -583,13 +749,13 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 // ParseFile parses a software file from a JSON map.
 func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 	file := &spdx.File{
-		ContentType: p.h.GetString(elemMap, "software_contentType"),
+		ContentType: p.H.GetString(elemMap, "software_contentType"),
 	}
 
 	// Set SoftwareArtifact fields
 	file.Element = p.ParseElement(elemMap)
-	file.CopyrightText = p.h.GetString(elemMap, "software_copyrightText")
-	file.AttributionText = p.h.GetStringSlice(elemMap, "software_attributionText")
+	file.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
+	file.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
 
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
 		file.PrimaryPurpose = spdx.SoftwarePurpose(pp)
@@ -600,7 +766,7 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 	}
 
 	// Parse ContentIdentifier (from embedded SoftwareArtifact)
-	if cids := p.h.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+	if cids := p.H.GetSlice(elemMap, "contentIdentifier"); cids != nil {
 		for _, ci := range cids {
 			if ciMap, ok := ci.(map[string]interface{}); ok {
 				file.ContentIdentifier = append(file.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
@@ -617,19 +783,19 @@ func (p *ElementParser) ParseSnippet(elemMap map[string]interface{}) *spdx.Snipp
 
 	// Set SoftwareArtifact fields
 	snippet.Element = p.ParseElement(elemMap)
-	snippet.CopyrightText = p.h.GetString(elemMap, "software_copyrightText")
-	snippet.AttributionText = p.h.GetStringSlice(elemMap, "software_attributionText")
+	snippet.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
+	snippet.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
 
-	if br := p.h.GetMap(elemMap, "software_byteRange"); br != nil {
+	if br := p.H.GetMap(elemMap, "software_byteRange"); br != nil {
 		snippet.ByteRange = p.ParseRange(br)
 	}
 
-	if lr := p.h.GetMap(elemMap, "software_lineRange"); lr != nil {
+	if lr := p.H.GetMap(elemMap, "software_lineRange"); lr != nil {
 		snippet.LineRange = p.ParseRange(lr)
 	}
 
 	// Parse ContentIdentifier (from embedded SoftwareArtifact)
-	if cids := p.h.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+	if cids := p.H.GetSlice(elemMap, "contentIdentifier"); cids != nil {
 		for _, ci := range cids {
 			if ciMap, ok := ci.(map[string]interface{}); ok {
 				snippet.ContentIdentifier = append(snippet.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
@@ -652,7 +818,7 @@ func (p *ElementParser) ParseRelationship(elemMap map[string]interface{}) *spdx.
 	}
 
 	// Store To as Elements with just the SpdxIDs set
-	if to := p.h.GetSlice(elemMap, "to"); to != nil {
+	if to := p.H.GetSlice(elemMap, "to"); to != nil {
 		for _, t := range to {
 			if ts, ok := t.(string); ok {
 				rel.To = append(rel.To, spdx.Element{SpdxID: ts})
@@ -668,8 +834,8 @@ func (p *ElementParser) ParseRelationship(elemMap map[string]interface{}) *spdx.
 		rel.Completeness = spdx.RelationshipCompleteness(comp)
 	}
 
-	rel.StartTime = p.h.GetTime(elemMap, "startTime")
-	rel.EndTime = p.h.GetTime(elemMap, "endTime")
+	rel.StartTime = p.H.GetTime(elemMap, "startTime")
+	rel.EndTime = p.H.GetTime(elemMap, "endTime")
 
 	return rel
 }
@@ -691,8 +857,8 @@ func (p *ElementParser) ParseLifecycleScopedRelationship(elemMap map[string]inte
 func (p *ElementParser) ParseAnnotation(elemMap map[string]interface{}) *spdx.Annotation {
 	ann := &spdx.Annotation{
 		Element:     p.ParseElement(elemMap),
-		ContentType: p.h.GetString(elemMap, "contentType"),
-		Statement:   p.h.GetString(elemMap, "statement"),
+		ContentType: p.H.GetString(elemMap, "contentType"),
+		Statement:   p.H.GetString(elemMap, "statement"),
 	}
 
 	// Subject is an Element reference
@@ -710,11 +876,11 @@ func (p *ElementParser) ParseAnnotation(elemMap map[string]interface{}) *spdx.An
 // ParseExternalMap parses an external map from a JSON map.
 func (p *ElementParser) ParseExternalMap(elemMap map[string]interface{}) *spdx.ExternalMap {
 	em := &spdx.ExternalMap{
-		ExternalSpdxId: p.h.GetString(elemMap, "externalSpdxId"),
-		LocationHint:   p.h.GetString(elemMap, "locationHint"),
+		ExternalSpdxId: p.H.GetString(elemMap, "externalSpdxId"),
+		LocationHint:   p.H.GetString(elemMap, "locationHint"),
 	}
 
-	if vu := p.h.GetSlice(elemMap, "verifiedUsing"); vu != nil {
+	if vu := p.H.GetSlice(elemMap, "verifiedUsing"); vu != nil {
 		for _, v := range vu {
 			if vMap, ok := v.(map[string]interface{}); ok {
 				em.VerifiedUsing = append(em.VerifiedUsing, p.ParseIntegrityMethod(vMap))
@@ -729,7 +895,7 @@ func (p *ElementParser) ParseExternalMap(elemMap map[string]interface{}) *spdx.E
 func (p *ElementParser) ParseHash(elemMap map[string]interface{}) *spdx.Hash {
 	hash := &spdx.Hash{
 		IntegrityMethod: p.ParseIntegrityMethod(elemMap),
-		HashValue:       p.h.GetString(elemMap, "hashValue"),
+		HashValue:       p.H.GetString(elemMap, "hashValue"),
 	}
 	if alg, ok := elemMap["algorithm"].(string); ok {
 		hash.Algorithm = spdx.HashAlgorithm(alg)
@@ -741,8 +907,8 @@ func (p *ElementParser) ParseHash(elemMap map[string]interface{}) *spdx.Hash {
 func (p *ElementParser) ParsePackageVerificationCode(elemMap map[string]interface{}) *spdx.PackageVerificationCode {
 	pvc := &spdx.PackageVerificationCode{
 		IntegrityMethod:                     p.ParseIntegrityMethod(elemMap),
-		HashValue:                           p.h.GetString(elemMap, "hashValue"),
-		PackageVerificationCodeExcludedFile: p.h.GetStringSlice(elemMap, "packageVerificationCodeExcludedFile"),
+		HashValue:                           p.H.GetString(elemMap, "hashValue"),
+		PackageVerificationCodeExcludedFile: p.H.GetStringSlice(elemMap, "packageVerificationCodeExcludedFile"),
 	}
 	if alg, ok := elemMap["algorithm"].(string); ok {
 		pvc.Algorithm = spdx.HashAlgorithm(alg)
@@ -752,5 +918,5 @@ func (p *ElementParser) ParsePackageVerificationCode(elemMap map[string]interfac
 
 // GetTime is a helper for parsing time strings.
 func (p *ElementParser) GetTime(elemMap map[string]interface{}, key string) time.Time {
-	return p.h.GetTime(elemMap, key)
+	return p.H.GetTime(elemMap, key)
 }

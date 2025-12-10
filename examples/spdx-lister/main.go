@@ -70,7 +70,7 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 		fmt.Printf("  SPDX ID:     %s\n", doc.SpdxDocument.SpdxID)
 		if doc.SpdxDocument.DataLicense != nil {
 			// Resolve the license reference to get the actual name
-			if lic := doc.GetLicenseByID(doc.SpdxDocument.DataLicense.SpdxID); lic != nil && lic.Name != "" {
+			if lic := doc.GetAnyLicenseInfoByID(doc.SpdxDocument.DataLicense.SpdxID); lic != nil && lic.Name != "" {
 				fmt.Printf("  Data License: %s\n", lic.Name)
 			} else if doc.SpdxDocument.DataLicense.Name != "" {
 				fmt.Printf("  Data License: %s\n", doc.SpdxDocument.DataLicense.Name)
@@ -146,8 +146,8 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 	fmt.Printf("  Persons:       %d\n", len(doc.Persons))
 	fmt.Printf("  SoftwareAgents:%d\n", len(doc.SoftwareAgents))
 	fmt.Printf("  Tools:         %d\n", len(doc.Tools))
-	fmt.Printf("  Licenses:      %d\n", len(doc.Licenses))
-	fmt.Printf("  IndividualElements: %d\n", len(doc.IndividualElements))
+	fmt.Printf("  Licenses:      %d\n", len(doc.AnyLicenseInfos)+len(doc.ConjunctiveLicenseSets)+len(doc.CustomLicenses)+len(doc.CustomLicenseAdditions)+len(doc.DisjunctiveLicenseSets)+len(doc.IndividualLicensingInfos)+len(doc.ListedLicenses)+len(doc.ListedLicenseExceptions)+len(doc.LicenseExpressions)+len(doc.OrLaterOperators)+len(doc.SimpleLicensingTexts)+len(doc.WithAdditionOperators))
+
 	fmt.Printf("  IndividualLicensingInfos: %d\n", len(doc.IndividualLicensingInfos))
 	fmt.Println()
 
@@ -442,14 +442,7 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 		fmt.Println()
 	}
 
-	// Individual Elements
-	if len(doc.IndividualElements) > 0 {
-		fmt.Println("Individual Elements:")
-		for _, ie := range doc.IndividualElements {
-			fmt.Printf("  - %s\n", ie.Name)
-		}
-		fmt.Println()
-	}
+
 
 	// Individual Licensing Infos
 	if len(doc.IndividualLicensingInfos) > 0 {
@@ -641,11 +634,7 @@ func findElementsCreatedByAgent(doc *parse.Document, agentID string) []string {
 			elementIDs = append(elementIDs, tool.SpdxID)
 		}
 	}
-	for _, ie := range doc.IndividualElements {
-		if isCreatedBy(&ie.CreationInfo) {
-			elementIDs = append(elementIDs, ie.SpdxID)
-		}
-	}
+
 	for _, ili := range doc.IndividualLicensingInfos {
 		if isCreatedBy(&ili.CreationInfo) {
 			elementIDs = append(elementIDs, ili.SpdxID)
@@ -758,18 +747,11 @@ func getElementInfo(doc *parse.Document, elemID string) string {
 	}
 
 	// Check licenses
-	for _, lic := range doc.Licenses {
-		if lic.SpdxID == elemID {
-			return fmt.Sprintf("%s (License, ID: %s)", lic.Name, elemID)
-		}
+	if lic := doc.GetAnyLicenseInfoByID(elemID); lic != nil {
+		return fmt.Sprintf("%s (License, ID: %s)", lic.Name, elemID)
 	}
 
-	// Check individual elements
-	for _, ie := range doc.IndividualElements {
-		if ie.SpdxID == elemID {
-			return fmt.Sprintf("%s (IndividualElement, ID: %s)", ie.Name, elemID)
-		}
-	}
+
 
 	// Check document itself
 	if doc.SpdxDocument != nil && doc.SpdxDocument.SpdxID == elemID {

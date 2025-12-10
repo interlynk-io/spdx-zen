@@ -118,7 +118,18 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 		PersonsByID:                              make(map[string]*spdx.Person),
 		SoftwareAgentsByID:                       make(map[string]*spdx.SoftwareAgent),
 		ToolsByID:                                make(map[string]*spdx.Tool),
-		LicensesByID:                             make(map[string]*spdx.AnyLicenseInfo),
+		AnyLicenseInfosByID:                      make(map[string]*spdx.AnyLicenseInfo),
+		ConjunctiveLicenseSetsByID:               make(map[string]*spdx.ConjunctiveLicenseSet),
+		CustomLicensesByID:                       make(map[string]*spdx.CustomLicense),
+		CustomLicenseAdditionsByID:               make(map[string]*spdx.CustomLicenseAddition),
+		DisjunctiveLicenseSetsByID:               make(map[string]*spdx.DisjunctiveLicenseSet),
+		IndividualLicensingInfosByID:             make(map[string]*spdx.IndividualLicensingInfo),
+		ListedLicensesByID:                       make(map[string]*spdx.ListedLicense),
+		ListedLicenseExceptionsByID:              make(map[string]*spdx.ListedLicenseException),
+		LicenseExpressionsByID:                   make(map[string]*spdx.LicenseExpression),
+		OrLaterOperatorsByID:                     make(map[string]*spdx.OrLaterOperator),
+		SimpleLicensingTextsByID:                 make(map[string]*spdx.SimpleLicensingText),
+		WithAdditionOperatorsByID:                make(map[string]*spdx.WithAdditionOperator),
 		VulnerabilitiesByID:                      make(map[string]*spdx.Vulnerability),
 		CvssV2VulnAssessmentsByID:                make(map[string]*spdx.CvssV2VulnAssessmentRelationship),
 		CvssV3VulnAssessmentsByID:                make(map[string]*spdx.CvssV3VulnAssessmentRelationship),
@@ -269,12 +280,6 @@ func (r *Reader) handleCoreElements(doc *Document, elemMap map[string]interface{
 	case TypePackageVerificationCode:
 		pvc := r.parser.ParsePackageVerificationCode(elemMap)
 		doc.PackageVerificationCodes = append(doc.PackageVerificationCodes, pvc)
-	case TypeIndividualElement:
-		ie := r.parser.ParseIndividualElement(elemMap)
-		doc.IndividualElements = append(doc.IndividualElements, ie)
-	case TypeIndividualLicensingInfo:
-		ili := r.parser.ParseIndividualLicensingInfo(elemMap)
-		doc.IndividualLicensingInfos = append(doc.IndividualLicensingInfos, ili)
 	default:
 		return false
 	}
@@ -307,13 +312,80 @@ func (r *Reader) handleSoftwareElements(doc *Document, elemMap map[string]interf
 }
 
 func (r *Reader) handleLicensingElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	spdxID := r.parser.H.GetString(elemMap, "spdxId")
+
 	switch elemType {
-	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense,
-		TypeLicenseExpression, TypeSimpleLicensingExpression:
-		lic := r.parser.ParseLicenseInfo(elemMap)
-		doc.Licenses = append(doc.Licenses, lic)
-		if lic.SpdxID != "" {
-			doc.LicensesByID[lic.SpdxID] = lic
+	case TypeAnyLicenseInfo:
+		lic := r.parser.ParseAnyLicenseInfo(elemMap)
+		doc.AnyLicenseInfos = append(doc.AnyLicenseInfos, lic)
+		if spdxID != "" {
+			doc.AnyLicenseInfosByID[spdxID] = lic
+		}
+	case TypeConjunctiveLicenseSet:
+		cls := r.parser.ParseConjunctiveLicenseSet(elemMap)
+		doc.ConjunctiveLicenseSets = append(doc.ConjunctiveLicenseSets, cls)
+		if spdxID != "" {
+			doc.ConjunctiveLicenseSetsByID[spdxID] = cls
+		}
+	case TypeCustomLicense:
+		cl := r.parser.ParseCustomLicense(elemMap)
+		doc.CustomLicenses = append(doc.CustomLicenses, cl)
+		if spdxID != "" {
+			doc.CustomLicensesByID[spdxID] = cl
+		}
+	case TypeLicenseAddition:
+		cla := r.parser.ParseCustomLicenseAddition(elemMap)
+		doc.CustomLicenseAdditions = append(doc.CustomLicenseAdditions, cla)
+		if spdxID != "" {
+			doc.CustomLicenseAdditionsByID[spdxID] = cla
+		}
+	case TypeDisjunctiveLicenseSet:
+		dls := r.parser.ParseDisjunctiveLicenseSet(elemMap)
+		doc.DisjunctiveLicenseSets = append(doc.DisjunctiveLicenseSets, dls)
+		if spdxID != "" {
+			doc.DisjunctiveLicenseSetsByID[spdxID] = dls
+		}
+	case TypeIndividualLicensingInfo: // Moved from handleCoreElements
+		ili := r.parser.ParseIndividualLicensingInfo(elemMap)
+		doc.IndividualLicensingInfos = append(doc.IndividualLicensingInfos, ili)
+		if spdxID != "" {
+			doc.IndividualLicensingInfosByID[spdxID] = ili
+		}
+	case TypeListedLicense:
+		ll := r.parser.ParseListedLicense(elemMap)
+		doc.ListedLicenses = append(doc.ListedLicenses, ll)
+		if spdxID != "" {
+			doc.ListedLicensesByID[spdxID] = ll
+		}
+	case TypeListedLicenseException:
+		lle := r.parser.ParseListedLicenseException(elemMap)
+		doc.ListedLicenseExceptions = append(doc.ListedLicenseExceptions, lle)
+		if spdxID != "" {
+			doc.ListedLicenseExceptionsByID[spdxID] = lle
+		}
+	case TypeLicenseExpression:
+		le := r.parser.ParseLicenseExpression(elemMap)
+		doc.LicenseExpressions = append(doc.LicenseExpressions, le)
+		if spdxID != "" {
+			doc.LicenseExpressionsByID[spdxID] = le
+		}
+	case TypeOrLaterOperator:
+		olo := r.parser.ParseOrLaterOperator(elemMap)
+		doc.OrLaterOperators = append(doc.OrLaterOperators, olo)
+		if spdxID != "" {
+			doc.OrLaterOperatorsByID[spdxID] = olo
+		}
+	case TypeSimpleLicensingText:
+		slt := r.parser.ParseSimpleLicensingText(elemMap)
+		doc.SimpleLicensingTexts = append(doc.SimpleLicensingTexts, slt)
+		if spdxID != "" {
+			doc.SimpleLicensingTextsByID[spdxID] = slt
+		}
+	case TypeWithAdditionOperator:
+		wao := r.parser.ParseWithAdditionOperator(elemMap)
+		doc.WithAdditionOperators = append(doc.WithAdditionOperators, wao)
+		if spdxID != "" {
+			doc.WithAdditionOperatorsByID[spdxID] = wao
 		}
 	default:
 		return false

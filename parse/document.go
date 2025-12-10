@@ -26,9 +26,19 @@ type Document struct {
 	DictionaryEntries            []*spdx.DictionaryEntry
 	Hashes                       []*spdx.Hash
 	PackageVerificationCodes     []*spdx.PackageVerificationCode
-	Licenses                     []*spdx.AnyLicenseInfo
-	IndividualElements           []*spdx.IndividualElement
-	IndividualLicensingInfos     []*spdx.IndividualLicensingInfo
+	// Licensing-related elements
+	AnyLicenseInfos          []*spdx.AnyLicenseInfo
+	ConjunctiveLicenseSets   []*spdx.ConjunctiveLicenseSet
+	CustomLicenses           []*spdx.CustomLicense
+	CustomLicenseAdditions   []*spdx.CustomLicenseAddition
+	DisjunctiveLicenseSets   []*spdx.DisjunctiveLicenseSet
+	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
+	ListedLicenses           []*spdx.ListedLicense
+	ListedLicenseExceptions  []*spdx.ListedLicenseException
+	LicenseExpressions       []*spdx.LicenseExpression
+	OrLaterOperators         []*spdx.OrLaterOperator
+	SimpleLicensingTexts     []*spdx.SimpleLicensingText
+	WithAdditionOperators    []*spdx.WithAdditionOperator
 
 	// Security-related elements
 	Vulnerabilities                      []*spdx.Vulnerability
@@ -57,7 +67,18 @@ type Document struct {
 	PersonsByID                              map[string]*spdx.Person
 	SoftwareAgentsByID                       map[string]*spdx.SoftwareAgent
 	ToolsByID                                map[string]*spdx.Tool
-	LicensesByID                             map[string]*spdx.AnyLicenseInfo
+	AnyLicenseInfosByID                      map[string]*spdx.AnyLicenseInfo
+	ConjunctiveLicenseSetsByID               map[string]*spdx.ConjunctiveLicenseSet
+	CustomLicensesByID                       map[string]*spdx.CustomLicense
+	CustomLicenseAdditionsByID               map[string]*spdx.CustomLicenseAddition
+	DisjunctiveLicenseSetsByID               map[string]*spdx.DisjunctiveLicenseSet
+	IndividualLicensingInfosByID             map[string]*spdx.IndividualLicensingInfo
+	ListedLicensesByID                       map[string]*spdx.ListedLicense
+	ListedLicenseExceptionsByID              map[string]*spdx.ListedLicenseException
+	LicenseExpressionsByID                   map[string]*spdx.LicenseExpression
+	OrLaterOperatorsByID                     map[string]*spdx.OrLaterOperator
+	SimpleLicensingTextsByID                 map[string]*spdx.SimpleLicensingText
+	WithAdditionOperatorsByID                map[string]*spdx.WithAdditionOperator
 	VulnerabilitiesByID                      map[string]*spdx.Vulnerability
 	CvssV2VulnAssessmentsByID                map[string]*spdx.CvssV2VulnAssessmentRelationship
 	CvssV3VulnAssessmentsByID                map[string]*spdx.CvssV3VulnAssessmentRelationship
@@ -261,13 +282,13 @@ func (d *Document) GetLicensesFor(spdxID string) *LicenseInfo {
 	for _, rel := range d.GetRelationshipsFrom(spdxID) {
 		if rel.IsConcludedLicense() {
 			for _, to := range rel.To {
-				if lic := d.GetLicenseByID(to.GetSpdxID()); lic != nil {
+				if lic := d.GetAnyLicenseInfoByID(to.GetSpdxID()); lic != nil {
 					info.ConcludedLicenses = append(info.ConcludedLicenses, lic)
 				}
 			}
 		} else if rel.IsDeclaredLicense() {
 			for _, to := range rel.To {
-				if lic := d.GetLicenseByID(to.GetSpdxID()); lic != nil {
+				if lic := d.GetAnyLicenseInfoByID(to.GetSpdxID()); lic != nil {
 					info.DeclaredLicenses = append(info.DeclaredLicenses, lic)
 				}
 			}
@@ -276,14 +297,14 @@ func (d *Document) GetLicensesFor(spdxID string) *LicenseInfo {
 	return info
 }
 
-// GetLicenseByID returns a license by its SPDX ID.
-func (d *Document) GetLicenseByID(spdxID string) *spdx.AnyLicenseInfo {
-	if d.LicensesByID != nil {
-		if lic := d.LicensesByID[spdxID]; lic != nil {
+// GetAnyLicenseInfoByID returns a license by its SPDX ID.
+func (d *Document) GetAnyLicenseInfoByID(spdxID string) *spdx.AnyLicenseInfo {
+	if d.AnyLicenseInfosByID != nil {
+		if lic := d.AnyLicenseInfosByID[spdxID]; lic != nil {
 			return lic
 		}
 	} else {
-		for _, lic := range d.Licenses {
+		for _, lic := range d.AnyLicenseInfos {
 			if lic.SpdxID == spdxID {
 				return lic
 			}

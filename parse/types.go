@@ -53,6 +53,10 @@ const (
 	TypeWithAdditionOperator      ElementType = "WithAdditionOperator"
 	TypeLicenseAddition           ElementType = "LicenseAddition"
 	TypeIndividualLicensingInfo   ElementType = "IndividualLicensingInfo"
+	// Newly added licensing element types
+	TypeSimpleLicensingText    ElementType = "simplelicensing_SimpleLicensingText"
+	TypeOrLaterOperator        ElementType = "expandedlicensing_OrLaterOperator"
+	TypeListedLicenseException ElementType = "expandedlicensing_ListedLicenseException"
 )
 
 // Security-related element types.
@@ -121,7 +125,7 @@ func (t ElementType) IsLicensing() bool {
 	switch t {
 	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense,
 		TypeLicenseExpression, TypeSimpleLicensingExpression, TypeConjunctiveLicenseSet, TypeDisjunctiveLicenseSet,
-		TypeWithAdditionOperator, TypeLicenseAddition:
+		TypeWithAdditionOperator, TypeLicenseAddition, TypeSimpleLicensingText, TypeOrLaterOperator, TypeListedLicenseException:
 		return true
 	}
 	return false
