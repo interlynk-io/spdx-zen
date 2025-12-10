@@ -127,6 +127,12 @@ func (p *Parser) ParseFile(path string) (*Model, error) {
 					enumID := t
 					enum, exists := model.Enums[enumID]
 					if !exists {
+						// Don't treat a class with a parent as an enum.
+						if class, isClass := model.Classes[enumID]; isClass {
+							if class.Parent != "" {
+								continue
+							}
+						}
 						// Create the enum if it doesn't exist
 						enum = &Enum{
 							ID:        enumID,
