@@ -9,21 +9,21 @@ import (
 // AIPackage Specifies an AI package and its associated information.
 type AIPackage struct {
 	Package
-	AutonomyType                    *PresenceType             `json:"autonomyType,omitempty"`
-	Domain                          []string                  `json:"domain,omitempty"`
-	EnergyConsumption               *EnergyConsumption        `json:"energyConsumption,omitempty"`
-	Hyperparameter                  []DictionaryEntry         `json:"hyperparameter,omitempty"`
-	InformationAboutApplication     string                    `json:"informationAboutApplication,omitempty"`
-	InformationAboutTraining        string                    `json:"informationAboutTraining,omitempty"`
-	Limitation                      string                    `json:"limitation,omitempty"`
-	Metric                          []DictionaryEntry         `json:"metric,omitempty"`
-	MetricDecisionThreshold         []DictionaryEntry         `json:"metricDecisionThreshold,omitempty"`
-	ModelDataPreprocessing          []string                  `json:"modelDataPreprocessing,omitempty"`
-	ModelExplainability             []string                  `json:"modelExplainability,omitempty"`
-	SafetyRiskAssessment            *SafetyRiskAssessmentType `json:"safetyRiskAssessment,omitempty"`
-	StandardCompliance              []string                  `json:"standardCompliance,omitempty"`
-	TypeOfModel                     []string                  `json:"typeOfModel,omitempty"`
-	UseSensitivePersonalInformation *PresenceType             `json:"useSensitivePersonalInformation,omitempty"`
+	AutonomyType                    PresenceType             `json:"autonomyType,omitempty"`
+	Domain                          []string                 `json:"domain,omitempty"`
+	EnergyConsumption               *EnergyConsumption       `json:"energyConsumption,omitempty"`
+	Hyperparameter                  []DictionaryEntry        `json:"hyperparameter,omitempty"`
+	InformationAboutApplication     string                   `json:"informationAboutApplication,omitempty"`
+	InformationAboutTraining        string                   `json:"informationAboutTraining,omitempty"`
+	Limitation                      string                   `json:"limitation,omitempty"`
+	Metric                          []DictionaryEntry        `json:"metric,omitempty"`
+	MetricDecisionThreshold         []DictionaryEntry        `json:"metricDecisionThreshold,omitempty"`
+	ModelDataPreprocessing          []string                 `json:"modelDataPreprocessing,omitempty"`
+	ModelExplainability             []string                 `json:"modelExplainability,omitempty"`
+	SafetyRiskAssessment            SafetyRiskAssessmentType `json:"safetyRiskAssessment,omitempty"`
+	StandardCompliance              []string                 `json:"standardCompliance,omitempty"`
+	TypeOfModel                     []string                 `json:"typeOfModel,omitempty"`
+	UseSensitivePersonalInformation PresenceType             `json:"useSensitivePersonalInformation,omitempty"`
 }
 
 // EnergyConsumption A class for describing the energy consumption incurred by an AI model in different stages of its lifecycle.
@@ -149,10 +149,10 @@ type ExternalMap struct {
 
 // ExternalRef A reference to a resource outside the scope of SPDX-3.0 content related to an Element.
 type ExternalRef struct {
-	ExternalRefType *ExternalRefType `json:"externalRefType,omitempty"`
-	Locator         []string         `json:"locator,omitempty"`
-	ContentType     string           `json:"contentType,omitempty"`
-	Comment         string           `json:"comment,omitempty"`
+	ExternalRefType ExternalRefType `json:"externalRefType,omitempty"`
+	Locator         []string        `json:"locator,omitempty"`
+	ContentType     string          `json:"contentType,omitempty"`
+	Comment         string          `json:"comment,omitempty"`
 }
 
 // Hash A mathematically calculated representation of a grouping of data.
@@ -160,6 +160,11 @@ type Hash struct {
 	IntegrityMethod
 	Algorithm HashAlgorithm `json:"algorithm" validate:"required"`
 	HashValue string        `json:"hashValue" validate:"required"`
+}
+
+// IndividualElement A concrete subclass of Element used by Individuals in the Core profile.
+type IndividualElement struct {
+	Element
 }
 
 // IntegrityMethod Provides an independently reproducible mechanism that permits verification of a specific Element.
@@ -171,13 +176,18 @@ type IntegrityMethod struct {
 // LifecycleScopedRelationship Provide context for a relationship that occurs in the lifecycle.
 type LifecycleScopedRelationship struct {
 	Relationship
-	Scope *LifecycleScopeType `json:"scope,omitempty"`
+	Scope LifecycleScopeType `json:"scope,omitempty"`
 }
 
 // NamespaceMap A mapping between prefixes and namespace partial URIs.
 type NamespaceMap struct {
 	Prefix    string `json:"prefix" validate:"required"`
 	Namespace string `json:"namespace" validate:"required,omitempty,url"`
+}
+
+// Organization A group of people who work together in an organized way for a shared purpose.
+type Organization struct {
+	Agent
 }
 
 // PackageVerificationCode An SPDX version 2.X compatible verification method for software packages.
@@ -202,12 +212,12 @@ type PositiveIntegerRange struct {
 // Relationship Describes a relationship between one or more elements.
 type Relationship struct {
 	Element
-	From             Element                   `json:"from" validate:"required"`
-	To               []Element                 `json:"to" validate:"required"`
-	RelationshipType RelationshipType          `json:"relationshipType" validate:"required"`
-	Completeness     *RelationshipCompleteness `json:"completeness,omitempty"`
-	StartTime        time.Time                 `json:"startTime,omitempty"`
-	EndTime          time.Time                 `json:"endTime,omitempty"`
+	From             Element                  `json:"from" validate:"required"`
+	To               []Element                `json:"to" validate:"required"`
+	RelationshipType RelationshipType         `json:"relationshipType" validate:"required"`
+	Completeness     RelationshipCompleteness `json:"completeness,omitempty"`
+	StartTime        time.Time                `json:"startTime,omitempty"`
+	EndTime          time.Time                `json:"endTime,omitempty"`
 }
 
 // SoftwareAgent A software agent.
@@ -231,19 +241,19 @@ type Tool struct {
 // DatasetPackage Specifies a data package and its associated information.
 type DatasetPackage struct {
 	Package
-	AnonymizationMethodUsed         []string                  `json:"anonymizationMethodUsed,omitempty"`
-	ConfidentialityLevel            *ConfidentialityLevelType `json:"confidentialityLevel,omitempty"`
-	DataCollectionProcess           string                    `json:"dataCollectionProcess,omitempty"`
-	DataPreprocessing               []string                  `json:"dataPreprocessing,omitempty"`
-	DatasetAvailability             *DatasetAvailabilityType  `json:"datasetAvailability,omitempty"`
-	DatasetNoise                    string                    `json:"datasetNoise,omitempty"`
-	DatasetSize                     int                       `json:"datasetSize,omitempty"`
-	DatasetType                     []DatasetType             `json:"datasetType" validate:"required"`
-	DatasetUpdateMechanism          string                    `json:"datasetUpdateMechanism,omitempty"`
-	HasSensitivePersonalInformation *PresenceType             `json:"hasSensitivePersonalInformation,omitempty"`
-	IntendedUse                     string                    `json:"intendedUse,omitempty"`
-	KnownBias                       []string                  `json:"knownBias,omitempty"`
-	Sensor                          []DictionaryEntry         `json:"sensor,omitempty"`
+	AnonymizationMethodUsed         []string                 `json:"anonymizationMethodUsed,omitempty"`
+	ConfidentialityLevel            ConfidentialityLevelType `json:"confidentialityLevel,omitempty"`
+	DataCollectionProcess           string                   `json:"dataCollectionProcess,omitempty"`
+	DataPreprocessing               []string                 `json:"dataPreprocessing,omitempty"`
+	DatasetAvailability             DatasetAvailabilityType  `json:"datasetAvailability,omitempty"`
+	DatasetNoise                    string                   `json:"datasetNoise,omitempty"`
+	DatasetSize                     int                      `json:"datasetSize,omitempty"`
+	DatasetType                     []DatasetType            `json:"datasetType" validate:"required"`
+	DatasetUpdateMechanism          string                   `json:"datasetUpdateMechanism,omitempty"`
+	HasSensitivePersonalInformation PresenceType             `json:"hasSensitivePersonalInformation,omitempty"`
+	IntendedUse                     string                   `json:"intendedUse,omitempty"`
+	KnownBias                       []string                 `json:"knownBias,omitempty"`
+	Sensor                          []DictionaryEntry        `json:"sensor,omitempty"`
 }
 
 // ConjunctiveLicenseSet Portion of an AnyLicenseInfo representing a set of licensing information where all elements apply.
@@ -270,6 +280,11 @@ type DisjunctiveLicenseSet struct {
 
 // ExtendableLicense Abstract class representing a License or an OrLaterOperator.
 type ExtendableLicense struct {
+	AnyLicenseInfo
+}
+
+// IndividualLicensingInfo A concrete subclass of AnyLicenseInfo used by Individuals in the ExpandedLicensing profile.
+type IndividualLicensingInfo struct {
 	AnyLicenseInfo
 }
 
@@ -402,9 +417,9 @@ type VexFixedVulnAssessmentRelationship struct {
 // VexNotAffectedVulnAssessmentRelationship Links a vulnerability and one or more elements designating the latter as products not affected by the vulnerability.
 type VexNotAffectedVulnAssessmentRelationship struct {
 	VexVulnAssessmentRelationship
-	JustificationType   *VexJustificationType `json:"justificationType,omitempty"`
-	ImpactStatement     string                `json:"impactStatement,omitempty"`
-	ImpactStatementTime time.Time             `json:"impactStatementTime,omitempty"`
+	JustificationType   VexJustificationType `json:"justificationType,omitempty"`
+	ImpactStatement     string               `json:"impactStatement,omitempty"`
+	ImpactStatementTime time.Time            `json:"impactStatementTime,omitempty"`
 }
 
 // VexUnderInvestigationVulnAssessmentRelationship Designates elements as products where the impact of a vulnerability is being investigated.
@@ -468,8 +483,8 @@ type ContentIdentifier struct {
 // File Refers to any object that stores content on a computer.
 type File struct {
 	SoftwareArtifact
-	ContentType string        `json:"contentType,omitempty"`
-	FileKind    *FileKindType `json:"fileKind,omitempty"`
+	ContentType string       `json:"contentType,omitempty"`
+	FileKind    FileKindType `json:"fileKind,omitempty"`
 }
 
 // Package Refers to any unit of content that can be associated with a distribution of software.
@@ -500,7 +515,7 @@ type Snippet struct {
 // SoftwareArtifact is an abstract type and should not be instantiated directly.
 type SoftwareArtifact struct {
 	Artifact
-	PrimaryPurpose    *SoftwarePurpose    `json:"primaryPurpose,omitempty"`
+	PrimaryPurpose    SoftwarePurpose     `json:"primaryPurpose,omitempty"`
 	AdditionalPurpose []SoftwarePurpose   `json:"additionalPurpose,omitempty"`
 	CopyrightText     string              `json:"copyrightText,omitempty"`
 	AttributionText   []string            `json:"attributionText,omitempty"`
