@@ -392,7 +392,7 @@ func (d *Document) GetContainedPackagesFor(spdxID string) []*spdx.Package {
 type ContainmentInfo struct {
 	Files        []*spdx.File
 	Packages     []*spdx.Package
-	Completeness *spdx.RelationshipCompleteness
+	Completeness spdx.RelationshipCompleteness
 }
 
 // GetContainmentFor returns containment info including files, packages, and completeness.
@@ -401,7 +401,7 @@ func (d *Document) GetContainmentFor(spdxID string) *ContainmentInfo {
 	for _, rel := range d.GetRelationshipsFrom(spdxID) {
 		if rel.IsContainment() {
 			// Capture completeness from the first containment relationship
-			if info.Completeness == nil && rel.Completeness != nil {
+			if info.Completeness == "" && rel.Completeness != "" {
 				info.Completeness = rel.Completeness
 			}
 			for _, to := range rel.To {

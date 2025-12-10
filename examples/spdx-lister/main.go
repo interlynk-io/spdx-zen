@@ -155,8 +155,8 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 			if pkg.DownloadLocation != "" {
 				fmt.Printf("      Download: %s\n", pkg.DownloadLocation)
 			}
-			if pkg.PrimaryPurpose != nil {
-				fmt.Printf("      Purpose: %s\n", *pkg.PrimaryPurpose)
+			if pkg.PrimaryPurpose != "" {
+				fmt.Printf("      Purpose: %s\n", pkg.PrimaryPurpose)
 			}
 			// Display dependencies using parse interface
 			deps := doc.GetDependenciesFor(pkg.SpdxID)
@@ -229,14 +229,14 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 			if len(containment.Files) > 0 || len(containment.Packages) > 0 {
 				totalContained := len(containment.Files) + len(containment.Packages)
 				fmt.Printf("      Contains: %d", totalContained)
-				if containment.Completeness != nil {
-					fmt.Printf(" (%s)", *containment.Completeness)
+				if containment.Completeness != "" {
+					fmt.Printf(" (%s)", containment.Completeness)
 				}
 				fmt.Println()
 				for _, file := range containment.Files {
 					purpose := ""
-					if file.PrimaryPurpose != nil {
-						purpose = fmt.Sprintf(" [%s]", *file.PrimaryPurpose)
+					if file.PrimaryPurpose != "" {
+						purpose = fmt.Sprintf(" [%s]", file.PrimaryPurpose)
 					}
 					fmt.Printf("        - %s%s\n", file.Name, purpose)
 				}
@@ -260,8 +260,8 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 			if file.ContentType != "" {
 				fmt.Printf("      Content Type: %s\n", file.ContentType)
 			}
-			if file.PrimaryPurpose != nil {
-				fmt.Printf("      Purpose: %s\n", *file.PrimaryPurpose)
+			if file.PrimaryPurpose != "" {
+				fmt.Printf("      Purpose: %s\n", file.PrimaryPurpose)
 			}
 
 			// Display licenses using parse interface

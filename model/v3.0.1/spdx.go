@@ -70,13 +70,13 @@ func (a *Artifact) GetSuppliedBy() *Agent {
 // SoftwareArtifactInterface defines the interface for software artifact elements.
 type SoftwareArtifactInterface interface {
 	ArtifactInterface
-	GetPrimaryPurpose() *SoftwarePurpose
+	GetPrimaryPurpose() SoftwarePurpose
 	GetAdditionalPurpose() []SoftwarePurpose
 	GetCopyrightText() string
 }
 
 // GetPrimaryPurpose returns the primary purpose of the software artifact.
-func (sa *SoftwareArtifact) GetPrimaryPurpose() *SoftwarePurpose {
+func (sa *SoftwareArtifact) GetPrimaryPurpose() SoftwarePurpose {
 	return sa.PrimaryPurpose
 }
 
