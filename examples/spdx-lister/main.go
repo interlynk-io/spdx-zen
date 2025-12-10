@@ -136,7 +136,9 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 	fmt.Printf("  Relationships: %d\n", len(doc.Relationships))
 	fmt.Printf("  Annotations:   %d\n", len(doc.Annotations))
 	fmt.Printf("  External Maps: %d\n", len(doc.ExternalMaps))
-	fmt.Printf("  Agents:        %d\n", len(doc.Agents))
+	fmt.Printf("  Organizations: %d\n", len(doc.Organizations))
+	fmt.Printf("  Persons:       %d\n", len(doc.Persons))
+	fmt.Printf("  SoftwareAgents:%d\n", len(doc.SoftwareAgents))
 	fmt.Printf("  Tools:         %d\n", len(doc.Tools))
 	fmt.Printf("  Licenses:      %d\n", len(doc.Licenses))
 	fmt.Println()
@@ -360,10 +362,16 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 	}
 
 	// Agents
-	if len(doc.Agents) > 0 {
+	if len(doc.Organizations) > 0 || len(doc.Persons) > 0 || len(doc.SoftwareAgents) > 0 {
 		fmt.Println("Agents:")
-		for _, agent := range doc.Agents {
-			fmt.Printf("  - %s\n", agent.Name)
+		for _, org := range doc.Organizations {
+			fmt.Printf("  - [Organization] %s\n", org.Name)
+		}
+		for _, person := range doc.Persons {
+			fmt.Printf("  - [Person] %s\n", person.Name)
+		}
+		for _, sa := range doc.SoftwareAgents {
+			fmt.Printf("  - [SoftwareAgent] %s\n", sa.Name)
 		}
 		fmt.Println()
 	}

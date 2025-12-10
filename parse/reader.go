@@ -114,7 +114,9 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 		RelationshipsToIndex:   make(map[string][]*spdx.Relationship),
 		PackagesByID:           make(map[string]*spdx.Package),
 		FilesByID:              make(map[string]*spdx.File),
-		AgentsByID:             make(map[string]*spdx.Agent),
+		OrganizationsByID:      make(map[string]*spdx.Organization),
+		PersonsByID:            make(map[string]*spdx.Person),
+		SoftwareAgentsByID:     make(map[string]*spdx.SoftwareAgent),
 		ToolsByID:              make(map[string]*spdx.Tool),
 		LicensesByID:           make(map[string]*spdx.AnyLicenseInfo),
 	}
@@ -222,11 +224,25 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 	case TypeCreationInfo:
 		doc.CreationInfo = r.parser.ParseCreationInfo(elemMap)
 
-	case TypePerson, TypeOrganization, TypeSoftwareAgent:
-		agent := r.parser.ParseAgent(elemMap)
-		doc.Agents = append(doc.Agents, agent)
-		if agent.SpdxID != "" {
-			doc.AgentsByID[agent.SpdxID] = agent
+	case TypeOrganization:
+		org := r.parser.ParseOrganization(elemMap)
+		doc.Organizations = append(doc.Organizations, org)
+		if org.SpdxID != "" {
+			doc.OrganizationsByID[org.SpdxID] = org
+		}
+
+	case TypePerson:
+		person := r.parser.ParsePerson(elemMap)
+		doc.Persons = append(doc.Persons, person)
+		if person.SpdxID != "" {
+			doc.PersonsByID[person.SpdxID] = person
+		}
+
+	case TypeSoftwareAgent:
+		sa := r.parser.ParseSoftwareAgent(elemMap)
+		doc.SoftwareAgents = append(doc.SoftwareAgents, sa)
+		if sa.SpdxID != "" {
+			doc.SoftwareAgentsByID[sa.SpdxID] = sa
 		}
 
 	case TypeTool:

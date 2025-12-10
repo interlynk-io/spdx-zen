@@ -1,0 +1,346 @@
+=== SPDX Document Information ===
+
+Document:
+  Name:        sbomasm v2.0.0
+  SPDX ID:     SPDXRef-SpdxDocument-E03980204F7ACBC4ABB38FEEDAD6E26864AA00B12657FD2F5D2EE06B36911496
+  Data License: CC0-1.0
+  Profiles:    [software core simpleLicensing]
+  Namespace Map:
+    sbom: https://interlynk.io/sbomasm/v2.0.0/wvNqbaQJ5USdHfS_CyLnrw
+
+Creation Info:
+  Spec Version: 3.0
+  Created:      2025-12-05 19:29:50
+  Created By:   Organization: Interlynk
+  Created Using: Tool: Microsoft.SBOMTool-4.1.4
+
+Summary:
+  Packages:      43
+  Files:         525
+  Snippets:      0
+  Relationships: 1185
+  Annotations:   0
+  External Maps: 1
+  Organizations: 2
+  Persons:       0
+  SoftwareAgents:0
+  Tools:         1
+  Licenses:      1
+
+Packages:
+  - github.com/inconshreveable/mousetrap
+      Version: v1.1.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - golang.org/x/tools
+      Version: v0.38.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/mattn/go-colorable
+      Version: v0.1.14
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - golang.org/x/text
+      Version: v0.31.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/spf13/pflag
+      Version: v1.0.10
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/anchore/go-struct-converter
+      Version: v0.0.0-20250211213226-cce56d595160
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - sigs.k8s.io/yaml
+      Version: v1.6.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/mattn/go-runewidth
+      Version: v0.0.19
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/clipperhouse/stringish
+      Version: v0.1.1
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/spdx/gordf
+      Version: v0.0.0-20250128162952-000978ccd6fb
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/rogpeppe/go-internal
+      Version: v1.14.1
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - golang.org/x/mod
+      Version: v0.30.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - golang.org/x/sys
+      Version: v0.38.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/shiftleftcyber/securesbom-sdk-golang/v2
+      Version: v2.0.5
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/hashicorp/go-cleanhttp
+      Version: v0.5.2
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - golang.org/x/time
+      Version: v0.14.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/VividCortex/ewma
+      Version: v1.2.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/mattn/go-isatty
+      Version: v0.0.20
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/spdx/tools-golang
+      Version: v0.5.5
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - go.uber.org/multierr
+      Version: v1.11.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/hashicorp/go-retryablehttp
+      Version: v0.7.8
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/interlynk-io/sbomqs
+      Version: v1.3.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - gopkg.in/natefinch/lumberjack.v2
+      Version: v2.2.1
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - sigs.k8s.io/release-utils
+      Version: v0.12.2
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/common-nighthawk/go-figure
+      Version: v0.0.0-20210622060536-734e95fb86be
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/guacsec/sw-id-core
+      Version: v0.1.3
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/google/uuid
+      Version: v1.6.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/package-url/packageurl-go
+      Version: v0.1.3
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/pingcap/log
+      Version: v1.1.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/fatih/color
+      Version: v1.18.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/github/go-spdx/v2
+      Version: v2.3.4
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/mitchellh/copystructure
+      Version: v1.2.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/mitchellh/reflectwalk
+      Version: v1.0.2
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/spf13/cobra
+      Version: v1.10.1
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/clipperhouse/uax29/v2
+      Version: v2.3.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/CycloneDX/cyclonedx-go
+      Version: v0.9.3
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - go.uber.org/zap
+      Version: v1.27.1
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/DependencyTrack/client-go
+      Version: v0.17.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/samber/lo
+      Version: v1.52.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - gopkg.in/yaml.v2
+      Version: v2.4.0
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - go.yaml.in/yaml/v2
+      Version: v2.4.3
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - github.com/cheggaaa/pb/v3
+      Version: v3.1.7
+      Download: NOASSERTION
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+  - sbomasm
+      Version: v2.0.0
+      Download: NOASSERTION
+      Dependencies: 42
+        - gopkg.in/yaml.v2@v2.4.0
+        - github.com/samber/lo@v1.52.0
+        - github.com/mitchellh/copystructure@v1.2.0
+        - github.com/spdx/tools-golang@v0.5.5
+        - github.com/mattn/go-runewidth@v0.0.19
+        - go.yaml.in/yaml/v2@v2.4.3
+        - github.com/DependencyTrack/client-go@v0.17.0
+        - github.com/mitchellh/reflectwalk@v1.0.2
+        - go.uber.org/multierr@v1.11.0
+        - sigs.k8s.io/yaml@v1.6.0
+        - github.com/cheggaaa/pb/v3@v3.1.7
+        - github.com/clipperhouse/uax29/v2@v2.3.0
+        - github.com/spf13/cobra@v1.10.1
+        - github.com/guacsec/sw-id-core@v0.1.3
+        - github.com/shiftleftcyber/securesbom-sdk-golang/v2@v2.0.5
+        - github.com/anchore/go-struct-converter@v0.0.0-20250211213226-cce56d595160
+        - github.com/google/uuid@v1.6.0
+        - github.com/hashicorp/go-retryablehttp@v0.7.8
+        - github.com/hashicorp/go-cleanhttp@v0.5.2
+        - github.com/clipperhouse/stringish@v0.1.1
+        - github.com/spf13/pflag@v1.0.10
+        - github.com/package-url/packageurl-go@v0.1.3
+        - sigs.k8s.io/release-utils@v0.12.2
+        - github.com/VividCortex/ewma@v1.2.0
+        - github.com/spdx/gordf@v0.0.0-20250128162952-000978ccd6fb
+        - golang.org/x/text@v0.31.0
+        - github.com/fatih/color@v1.18.0
+        - github.com/common-nighthawk/go-figure@v0.0.0-20210622060536-734e95fb86be
+        - github.com/mattn/go-isatty@v0.0.20
+        - golang.org/x/mod@v0.30.0
+        - github.com/mattn/go-colorable@v0.1.14
+        - github.com/pingcap/log@v1.1.0
+        - gopkg.in/natefinch/lumberjack.v2@v2.2.1
+        - golang.org/x/time@v0.14.0
+        - github.com/rogpeppe/go-internal@v1.14.1
+        - github.com/inconshreveable/mousetrap@v1.1.0
+        - go.uber.org/zap@v1.27.1
+        - github.com/CycloneDX/cyclonedx-go@v0.9.3
+        - github.com/github/go-spdx/v2@v2.3.4
+        - github.com/interlynk-io/sbomqs@v1.3.0
+        - golang.org/x/sys@v0.38.0
+        - golang.org/x/tools@v0.38.0
+      Licenses:
+        Concluded: NOASSERTION
+        Declared: NOASSERTION
+
+Relationship Types:
+  describes: 5
+  hasConcludedLicense: 568
+  hasDeclaredLicense: 569
+  dependsOn: 42
+  hasPrerequisite: 1
+
+Agents:
+  - [Organization] NOASSERTION
+  - [Organization] Organization: Interlynk
+
+Tools:
+  - Tool: Microsoft.SBOMTool-4.1.4
+

@@ -145,6 +145,33 @@ func (p *ElementParser) ParseAgent(elemMap map[string]interface{}) *spdx.Agent {
 	}
 }
 
+// ParseOrganization parses an organization from a JSON map.
+func (p *ElementParser) ParseOrganization(elemMap map[string]interface{}) *spdx.Organization {
+	return &spdx.Organization{
+		Agent: spdx.Agent{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
+// ParsePerson parses a person from a JSON map.
+func (p *ElementParser) ParsePerson(elemMap map[string]interface{}) *spdx.Person {
+	return &spdx.Person{
+		Agent: spdx.Agent{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
+// ParseSoftwareAgent parses a software agent from a JSON map.
+func (p *ElementParser) ParseSoftwareAgent(elemMap map[string]interface{}) *spdx.SoftwareAgent {
+	return &spdx.SoftwareAgent{
+		Agent: spdx.Agent{
+			Element: p.ParseElement(elemMap),
+		},
+	}
+}
+
 // ParseTool parses a tool from a JSON map.
 func (p *ElementParser) ParseTool(elemMap map[string]interface{}) *spdx.Tool {
 	return &spdx.Tool{
