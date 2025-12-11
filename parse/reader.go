@@ -378,7 +378,7 @@ func (r *Reader) handleLicensingElements(doc *Document, elemMap map[string]inter
 		if spdxID != "" {
 			doc.ListedLicenseExceptionsByID[spdxID] = lle
 		}
-	case TypeLicenseExpression:
+	case TypeLicenseExpression, TypeSimpleLicensingExpression:
 		le := r.parser.ParseLicenseExpression(elemMap)
 		doc.LicenseExpressions = append(doc.LicenseExpressions, le)
 		if spdxID != "" {
