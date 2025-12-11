@@ -221,7 +221,7 @@ func printPackageAgents(doc *parse.Document, pkg *spdx.Package) {
 	}
 
 	if pkg.SuppliedBy != nil {
-		name := resolveAgentName(doc, pkg.SuppliedBy)
+		name := resolveAgentNameWithType(doc, pkg.SuppliedBy)
 		fmt.Printf("      Supplied By: %s\n", name)
 	}
 }
@@ -607,9 +607,18 @@ func printAgentPackageAssociations(doc *parse.Document, agentID string) {
 func resolveAgentNames(doc *parse.Document, agents []spdx.Agent) []string {
 	names := make([]string, 0, len(agents))
 	for _, agent := range agents {
-		names = append(names, resolveAgentName(doc, &agent))
+		names = append(names, resolveAgentNameWithType(doc, &agent))
 	}
 	return names
+}
+
+func resolveAgentNameWithType(doc *parse.Document, agent *spdx.Agent) string {
+	name := resolveAgentName(doc, agent)
+	agentType := doc.GetAgentTypeByID(agent.SpdxID)
+	if agentType != parse.AgentTypeUnknown {
+		return fmt.Sprintf("%s [%s]", name, agentType)
+	}
+	return name
 }
 
 func resolveAgentName(doc *parse.Document, agent *spdx.Agent) string {

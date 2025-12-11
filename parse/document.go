@@ -548,6 +548,8 @@ func (d *Document) GetAnnotationsFor(spdxID string) []*spdx.Annotation {
 
 // GetAgentByID returns an agent by its SPDX ID.
 // This is useful for resolving agent references in CreationInfo.
+// To determine the specific agent type, use GetAgentTypeByID or the type-specific
+// methods: GetOrganizationByID, GetPersonByID, GetSoftwareAgentByID.
 func (d *Document) GetAgentByID(spdxID string) *spdx.Agent {
 	if org, ok := d.OrganizationsByID[spdxID]; ok {
 		return &org.Agent
@@ -559,6 +561,47 @@ func (d *Document) GetAgentByID(spdxID string) *spdx.Agent {
 		return &sa.Agent
 	}
 	return nil
+}
+
+// AgentType represents the type of an agent.
+type AgentType string
+
+const (
+	AgentTypeOrganization  AgentType = "Organization"
+	AgentTypePerson        AgentType = "Person"
+	AgentTypeSoftwareAgent AgentType = "SoftwareAgent"
+	AgentTypeUnknown       AgentType = ""
+)
+
+// GetAgentTypeByID returns the type of agent for the given SPDX ID.
+// Returns AgentTypeOrganization, AgentTypePerson, AgentTypeSoftwareAgent,
+// or AgentTypeUnknown if the agent is not found.
+func (d *Document) GetAgentTypeByID(spdxID string) AgentType {
+	if _, ok := d.OrganizationsByID[spdxID]; ok {
+		return AgentTypeOrganization
+	}
+	if _, ok := d.PersonsByID[spdxID]; ok {
+		return AgentTypePerson
+	}
+	if _, ok := d.SoftwareAgentsByID[spdxID]; ok {
+		return AgentTypeSoftwareAgent
+	}
+	return AgentTypeUnknown
+}
+
+// GetOrganizationByID returns an Organization by its SPDX ID, or nil if not found.
+func (d *Document) GetOrganizationByID(spdxID string) *spdx.Organization {
+	return d.OrganizationsByID[spdxID]
+}
+
+// GetPersonByID returns a Person by its SPDX ID, or nil if not found.
+func (d *Document) GetPersonByID(spdxID string) *spdx.Person {
+	return d.PersonsByID[spdxID]
+}
+
+// GetSoftwareAgentByID returns a SoftwareAgent by its SPDX ID, or nil if not found.
+func (d *Document) GetSoftwareAgentByID(spdxID string) *spdx.SoftwareAgent {
+	return d.SoftwareAgentsByID[spdxID]
 }
 
 // GetToolByID returns a tool by its SPDX ID.
