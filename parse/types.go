@@ -5,28 +5,30 @@ type ElementType string
 
 // Core SPDX element types.
 const (
-	TypeElement                 ElementType = "Element"
-	TypeSpdxDocument            ElementType = "SpdxDocument"
-	TypeRelationship            ElementType = "Relationship"
-	TypeAnnotation              ElementType = "Annotation"
-	TypeBundle                  ElementType = "Bundle"
-	TypeExternalMap             ElementType = "ExternalMap"
-	TypeExternalIdentifier      ElementType = "ExternalIdentifier"
-	TypeExternalRef             ElementType = "ExternalRef"
-	TypeHash                    ElementType = "Hash"
-	TypeCreationInfo            ElementType = "CreationInfo"
-	TypeAgent                   ElementType = "Agent"
-	TypePerson                  ElementType = "Person"
-	TypeOrganization            ElementType = "Organization"
-	TypeSoftwareAgent           ElementType = "SoftwareAgent"
-	TypeTool                    ElementType = "Tool"
-	TypeArtifact                ElementType = "Artifact"
-	TypeNamespaceMap            ElementType = "NamespaceMap"
-	TypeDictionaryEntry         ElementType = "DictionaryEntry"
-	TypePositiveIntegerRange    ElementType = "PositiveIntegerRange"
-	TypeIntegrityMethod         ElementType = "IntegrityMethod"
-	TypePackageVerificationCode ElementType = "PackageVerificationCode"
-	TypeIndividualElement       ElementType = "IndividualElement"
+	TypeElement                     ElementType = "Element"
+	TypeSpdxDocument                ElementType = "SpdxDocument"
+	TypeRelationship                ElementType = "Relationship"
+	TypeLifecycleScopedRelationship ElementType = "LifecycleScopedRelationship"
+	TypeAnnotation                  ElementType = "Annotation"
+	TypeBom                         ElementType = "Bom"
+	TypeBundle                      ElementType = "Bundle"
+	TypeExternalMap                 ElementType = "ExternalMap"
+	TypeExternalIdentifier          ElementType = "ExternalIdentifier"
+	TypeExternalRef                 ElementType = "ExternalRef"
+	TypeHash                        ElementType = "Hash"
+	TypeCreationInfo                ElementType = "CreationInfo"
+	TypeAgent                       ElementType = "Agent"
+	TypePerson                      ElementType = "Person"
+	TypeOrganization                ElementType = "Organization"
+	TypeSoftwareAgent               ElementType = "SoftwareAgent"
+	TypeTool                        ElementType = "Tool"
+	TypeArtifact                    ElementType = "Artifact"
+	TypeNamespaceMap                ElementType = "NamespaceMap"
+	TypeDictionaryEntry             ElementType = "DictionaryEntry"
+	TypePositiveIntegerRange        ElementType = "PositiveIntegerRange"
+	TypeIntegrityMethod             ElementType = "IntegrityMethod"
+	TypePackageVerificationCode     ElementType = "PackageVerificationCode"
+	TypeIndividualElement           ElementType = "IndividualElement"
 )
 
 // Software-related element types.
@@ -51,24 +53,34 @@ const (
 	TypeWithAdditionOperator      ElementType = "WithAdditionOperator"
 	TypeLicenseAddition           ElementType = "LicenseAddition"
 	TypeIndividualLicensingInfo   ElementType = "IndividualLicensingInfo"
+	// Newly added licensing element types
+	TypeSimpleLicensingText    ElementType = "simplelicensing_SimpleLicensingText"
+	TypeOrLaterOperator        ElementType = "expandedlicensing_OrLaterOperator"
+	TypeListedLicenseException ElementType = "expandedlicensing_ListedLicenseException"
 )
 
 // Security-related element types.
 const (
-	TypeVulnerability                ElementType = "security_Vulnerability"
-	TypeVulnAssessmentRelationship   ElementType = "security_VulnAssessmentRelationship"
-	TypeCvssV2VulnAssessment         ElementType = "security_CvssV2VulnAssessmentRelationship"
-	TypeCvssV3VulnAssessment         ElementType = "security_CvssV3VulnAssessmentRelationship"
-	TypeCvssV4VulnAssessment         ElementType = "security_CvssV4VulnAssessmentRelationship"
-	TypeEpssVulnAssessment           ElementType = "security_EpssVulnAssessmentRelationship"
-	TypeSsvcVulnAssessment           ElementType = "security_SsvcVulnAssessmentRelationship"
-	TypeVexVulnAssessment            ElementType = "security_VexVulnAssessmentRelationship"
-	TypeExploitCatalogVulnAssessment ElementType = "security_ExploitCatalogVulnAssessmentRelationship"
+	TypeVulnerability                       ElementType = "security_Vulnerability"
+	TypeVulnAssessmentRelationship          ElementType = "security_VulnAssessmentRelationship"
+	TypeCvssV2VulnAssessment                ElementType = "security_CvssV2VulnAssessmentRelationship"
+	TypeCvssV3VulnAssessment                ElementType = "security_CvssV3VulnAssessmentRelationship"
+	TypeCvssV4VulnAssessment                ElementType = "security_CvssV4VulnAssessmentRelationship"
+	TypeEpssVulnAssessment                  ElementType = "security_EpssVulnAssessmentRelationship"
+	TypeSsvcVulnAssessment                  ElementType = "security_SsvcVulnAssessmentRelationship"
+	TypeVexVulnAssessment                   ElementType = "security_VexVulnAssessmentRelationship"
+	TypeVexAffectedVulnAssessment           ElementType = "security_VexAffectedVulnAssessmentRelationship"
+	TypeVexFixedVulnAssessment              ElementType = "security_VexFixedVulnAssessmentRelationship"
+	TypeVexNotAffectedVulnAssessment        ElementType = "security_VexNotAffectedVulnAssessmentRelationship"
+	TypeVexUnderInvestigationVulnAssessment ElementType = "security_VexUnderInvestigationVulnAssessmentRelationship"
+	TypeExploitCatalogVulnAssessment        ElementType = "security_ExploitCatalogVulnAssessmentRelationship"
 )
 
 // AI/ML element types.
 const (
-	TypeAIPackage ElementType = "ai_AIPackage"
+	TypeAIPackage                    ElementType = "ai_AIPackage"
+	TypeEnergyConsumption            ElementType = "ai_EnergyConsumption"
+	TypeEnergyConsumptionDescription ElementType = "ai_EnergyConsumptionDescription"
 )
 
 // Dataset element types.
@@ -89,8 +101,8 @@ func (t ElementType) String() string {
 // IsCore returns true if this is a core SPDX element type.
 func (t ElementType) IsCore() bool {
 	switch t {
-	case TypeElement, TypeSpdxDocument, TypeRelationship, TypeAnnotation,
-		TypeBundle, TypeExternalMap, TypeExternalIdentifier, TypeExternalRef,
+	case TypeElement, TypeSpdxDocument, TypeRelationship, TypeLifecycleScopedRelationship, TypeAnnotation,
+		TypeBom, TypeBundle, TypeExternalMap, TypeExternalIdentifier, TypeExternalRef,
 		TypeHash, TypeCreationInfo, TypeAgent, TypePerson, TypeOrganization,
 		TypeSoftwareAgent, TypeTool, TypeArtifact, TypeNamespaceMap,
 		TypeDictionaryEntry, TypePositiveIntegerRange, TypeIntegrityMethod,
@@ -115,7 +127,7 @@ func (t ElementType) IsLicensing() bool {
 	switch t {
 	case TypeAnyLicenseInfo, TypeLicense, TypeListedLicense, TypeCustomLicense,
 		TypeLicenseExpression, TypeSimpleLicensingExpression, TypeConjunctiveLicenseSet, TypeDisjunctiveLicenseSet,
-		TypeWithAdditionOperator, TypeLicenseAddition:
+		TypeWithAdditionOperator, TypeLicenseAddition, TypeSimpleLicensingText, TypeOrLaterOperator, TypeListedLicenseException:
 		return true
 	}
 	return false

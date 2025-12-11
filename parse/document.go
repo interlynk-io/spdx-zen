@@ -8,21 +8,61 @@ type Document struct {
 	Graph   []spdx.Element `json:"-"` // Parsed elements from @graph
 
 	// Parsed and categorized elements
-	SpdxDocument             *spdx.SpdxDocument
-	Packages                 []*spdx.Package
-	Files                    []*spdx.File
-	Snippets                 []*spdx.Snippet
-	Relationships            []*spdx.Relationship
-	Annotations              []*spdx.Annotation
-	ExternalMaps             []*spdx.ExternalMap
-	CreationInfo             *spdx.CreationInfo
-	Organizations            []*spdx.Organization
-	Persons                  []*spdx.Person
-	SoftwareAgents           []*spdx.SoftwareAgent
-	Tools                    []*spdx.Tool
-	Licenses                 []*spdx.AnyLicenseInfo
-	IndividualElements       []*spdx.IndividualElement
+	SpdxDocument                 *spdx.SpdxDocument
+	Packages                     []*spdx.Package
+	Files                        []*spdx.File
+	Snippets                     []*spdx.Snippet
+	Relationships                []*spdx.Relationship
+	LifecycleScopedRelationships []*spdx.LifecycleScopedRelationship
+	Annotations                  []*spdx.Annotation
+	ExternalMaps                 []*spdx.ExternalMap
+	CreationInfo                 *spdx.CreationInfo
+	Organizations                []*spdx.Organization
+	Persons                      []*spdx.Person
+	SoftwareAgents               []*spdx.SoftwareAgent
+	Tools                        []*spdx.Tool
+	Bundles                      []*spdx.Bundle
+	Boms                         []*spdx.Bom
+	DictionaryEntries            []*spdx.DictionaryEntry
+	Hashes                       []*spdx.Hash
+	PackageVerificationCodes     []*spdx.PackageVerificationCode
+	// Licensing-related elements
+	AnyLicenseInfos          []*spdx.AnyLicenseInfo
+	ConjunctiveLicenseSets   []*spdx.ConjunctiveLicenseSet
+	CustomLicenses           []*spdx.CustomLicense
+	CustomLicenseAdditions   []*spdx.CustomLicenseAddition
+	DisjunctiveLicenseSets   []*spdx.DisjunctiveLicenseSet
 	IndividualLicensingInfos []*spdx.IndividualLicensingInfo
+	ListedLicenses           []*spdx.ListedLicense
+	ListedLicenseExceptions  []*spdx.ListedLicenseException
+	LicenseExpressions       []*spdx.LicenseExpression
+	OrLaterOperators         []*spdx.OrLaterOperator
+	SimpleLicensingTexts     []*spdx.SimpleLicensingText
+	WithAdditionOperators    []*spdx.WithAdditionOperator
+
+	// Security-related elements
+	Vulnerabilities                      []*spdx.Vulnerability
+	CvssV2VulnAssessments                []*spdx.CvssV2VulnAssessmentRelationship
+	CvssV3VulnAssessments                []*spdx.CvssV3VulnAssessmentRelationship
+	CvssV4VulnAssessments                []*spdx.CvssV4VulnAssessmentRelationship
+	EpssVulnAssessments                  []*spdx.EpssVulnAssessmentRelationship
+	SsvcVulnAssessments                  []*spdx.SsvcVulnAssessmentRelationship
+	ExploitCatalogVulnAssessments        []*spdx.ExploitCatalogVulnAssessmentRelationship
+	VexAffectedVulnAssessments           []*spdx.VexAffectedVulnAssessmentRelationship
+	VexFixedVulnAssessments              []*spdx.VexFixedVulnAssessmentRelationship
+	VexNotAffectedVulnAssessments        []*spdx.VexNotAffectedVulnAssessmentRelationship
+	VexUnderInvestigationVulnAssessments []*spdx.VexUnderInvestigationVulnAssessmentRelationship
+
+	// AI-related elements
+	AiPackages                    []*spdx.AIPackage
+	EnergyConsumptions            []*spdx.EnergyConsumption
+	EnergyConsumptionDescriptions []*spdx.EnergyConsumptionDescription
+
+	// Dataset-related elements
+	DatasetPackages []*spdx.DatasetPackage
+
+	// Build-related elements
+	Builds []*spdx.Build
 
 	// All elements indexed by SPDX ID
 	ElementsByID map[string]interface{}
@@ -32,13 +72,45 @@ type Document struct {
 	RelationshipsToIndex   map[string][]*spdx.Relationship
 
 	// Element type indexes for O(1) lookups
-	PackagesByID       map[string]*spdx.Package
-	FilesByID          map[string]*spdx.File
-	OrganizationsByID  map[string]*spdx.Organization
-	PersonsByID        map[string]*spdx.Person
-	SoftwareAgentsByID map[string]*spdx.SoftwareAgent
-	ToolsByID          map[string]*spdx.Tool
-	LicensesByID       map[string]*spdx.AnyLicenseInfo
+	PackagesByID                             map[string]*spdx.Package
+	FilesByID                                map[string]*spdx.File
+	OrganizationsByID                        map[string]*spdx.Organization
+	PersonsByID                              map[string]*spdx.Person
+	SoftwareAgentsByID                       map[string]*spdx.SoftwareAgent
+	ToolsByID                                map[string]*spdx.Tool
+	AnyLicenseInfosByID                      map[string]*spdx.AnyLicenseInfo
+	ConjunctiveLicenseSetsByID               map[string]*spdx.ConjunctiveLicenseSet
+	CustomLicensesByID                       map[string]*spdx.CustomLicense
+	CustomLicenseAdditionsByID               map[string]*spdx.CustomLicenseAddition
+	DisjunctiveLicenseSetsByID               map[string]*spdx.DisjunctiveLicenseSet
+	IndividualLicensingInfosByID             map[string]*spdx.IndividualLicensingInfo
+	ListedLicensesByID                       map[string]*spdx.ListedLicense
+	ListedLicenseExceptionsByID              map[string]*spdx.ListedLicenseException
+	LicenseExpressionsByID                   map[string]*spdx.LicenseExpression
+	OrLaterOperatorsByID                     map[string]*spdx.OrLaterOperator
+	SimpleLicensingTextsByID                 map[string]*spdx.SimpleLicensingText
+	WithAdditionOperatorsByID                map[string]*spdx.WithAdditionOperator
+	VulnerabilitiesByID                      map[string]*spdx.Vulnerability
+	CvssV2VulnAssessmentsByID                map[string]*spdx.CvssV2VulnAssessmentRelationship
+	CvssV3VulnAssessmentsByID                map[string]*spdx.CvssV3VulnAssessmentRelationship
+	CvssV4VulnAssessmentsByID                map[string]*spdx.CvssV4VulnAssessmentRelationship
+	EpssVulnAssessmentsByID                  map[string]*spdx.EpssVulnAssessmentRelationship
+	SsvcVulnAssessmentsByID                  map[string]*spdx.SsvcVulnAssessmentRelationship
+	ExploitCatalogVulnAssessmentsByID        map[string]*spdx.ExploitCatalogVulnAssessmentRelationship
+	VexAffectedVulnAssessmentsByID           map[string]*spdx.VexAffectedVulnAssessmentRelationship
+	VexFixedVulnAssessmentsByID              map[string]*spdx.VexFixedVulnAssessmentRelationship
+	VexNotAffectedVulnAssessmentsByID        map[string]*spdx.VexNotAffectedVulnAssessmentRelationship
+	VexUnderInvestigationVulnAssessmentsByID map[string]*spdx.VexUnderInvestigationVulnAssessmentRelationship
+	// AI-related maps
+	AiPackagesByID                    map[string]*spdx.AIPackage
+	EnergyConsumptionsByID            map[string]*spdx.EnergyConsumption
+	EnergyConsumptionDescriptionsByID map[string]*spdx.EnergyConsumptionDescription
+
+	// Dataset-related maps
+	DatasetPackagesByID map[string]*spdx.DatasetPackage
+
+	// Build-related maps
+	BuildsByID map[string]*spdx.Build
 }
 
 // GetName returns the document name
@@ -231,13 +303,13 @@ func (d *Document) GetLicensesFor(spdxID string) *LicenseInfo {
 	for _, rel := range d.GetRelationshipsFrom(spdxID) {
 		if rel.IsConcludedLicense() {
 			for _, to := range rel.To {
-				if lic := d.GetLicenseByID(to.GetSpdxID()); lic != nil {
+				if lic := d.GetAnyLicenseInfoByID(to.GetSpdxID()); lic != nil {
 					info.ConcludedLicenses = append(info.ConcludedLicenses, lic)
 				}
 			}
 		} else if rel.IsDeclaredLicense() {
 			for _, to := range rel.To {
-				if lic := d.GetLicenseByID(to.GetSpdxID()); lic != nil {
+				if lic := d.GetAnyLicenseInfoByID(to.GetSpdxID()); lic != nil {
 					info.DeclaredLicenses = append(info.DeclaredLicenses, lic)
 				}
 			}
@@ -246,14 +318,14 @@ func (d *Document) GetLicensesFor(spdxID string) *LicenseInfo {
 	return info
 }
 
-// GetLicenseByID returns a license by its SPDX ID.
-func (d *Document) GetLicenseByID(spdxID string) *spdx.AnyLicenseInfo {
-	if d.LicensesByID != nil {
-		if lic := d.LicensesByID[spdxID]; lic != nil {
+// GetAnyLicenseInfoByID returns a license by its SPDX ID.
+func (d *Document) GetAnyLicenseInfoByID(spdxID string) *spdx.AnyLicenseInfo {
+	if d.AnyLicenseInfosByID != nil {
+		if lic := d.AnyLicenseInfosByID[spdxID]; lic != nil {
 			return lic
 		}
 	} else {
-		for _, lic := range d.Licenses {
+		for _, lic := range d.AnyLicenseInfos {
 			if lic.SpdxID == spdxID {
 				return lic
 			}
