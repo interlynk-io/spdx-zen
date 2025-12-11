@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
 	"github.com/interlynk-io/spdx-zen/parse"
@@ -30,26 +31,10 @@ func main() {
 	agentType := flag.String("filter-agent", "", "Filter by agent type: organization, person, or software")
 	flag.Parse()
 
-	var doc *parse.Document
-	var err error
-	reader := parse.NewReader()
-
-	args := flag.Args()
-	if len(args) == 0 {
-		// Read from stdin
-		doc, err = reader.FromReader(os.Stdin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading SPDX document from stdin: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		// Read from file
-		filePath := args[0]
-		doc, err = reader.ReadFile(filePath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading SPDX document from file: %v\n", err)
-			os.Exit(1)
-		}
+	doc, err := loadDocument(flag.Args())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	if *agentType != "" {
@@ -59,82 +44,98 @@ func main() {
 	}
 }
 
+func loadDocument(args []string) (*parse.Document, error) {
+	reader := parse.NewReader()
+	if len(args) == 0 {
+		return reader.FromReader(os.Stdin)
+	}
+	return reader.ReadFile(args[0])
+}
+
+// =============================================================================
+// Main Document Printing
+// =============================================================================
+
 func printDocumentInfo(doc *parse.Document, showFiles bool) {
 	fmt.Println("=== SPDX Document Information ===")
 	fmt.Println()
 
-	// Document metadata
-	if doc.SpdxDocument != nil {
-		fmt.Println("Document:")
-		fmt.Printf("  Name:        %s\n", doc.SpdxDocument.Name)
-		fmt.Printf("  SPDX ID:     %s\n", doc.SpdxDocument.SpdxID)
-		if doc.SpdxDocument.DataLicense != nil {
-			// Resolve the license reference to get the actual name
-			if lic := doc.GetAnyLicenseInfoByID(doc.SpdxDocument.DataLicense.SpdxID); lic != nil && lic.Name != "" {
-				fmt.Printf("  Data License: %s\n", lic.Name)
-			} else if doc.SpdxDocument.DataLicense.Name != "" {
-				fmt.Printf("  Data License: %s\n", doc.SpdxDocument.DataLicense.Name)
-			} else {
-				fmt.Printf("  Data License: %s\n", doc.SpdxDocument.DataLicense.SpdxID)
-			}
-		}
-		if len(doc.SpdxDocument.ProfileConformance) > 0 {
-			fmt.Printf("  Profiles:    %v\n", doc.SpdxDocument.ProfileConformance)
-		}
-		if len(doc.SpdxDocument.NamespaceMap) > 0 {
-			fmt.Println("  Namespace Map:")
-			for _, ns := range doc.SpdxDocument.NamespaceMap {
-				fmt.Printf("    %s: %s\n", ns.Prefix, ns.Namespace)
-			}
-		}
-		fmt.Println()
+	printDocumentMetadata(doc)
+	printCreationInfo(doc)
+	printSummary(doc)
+	printPackages(doc)
+	if showFiles {
+		printFiles(doc)
+	}
+	printRelationshipStats(doc)
+	printAgents(doc)
+	printTools(doc)
+	printLicensingInfos(doc)
+}
+
+func printDocumentMetadata(doc *parse.Document) {
+	if doc.SpdxDocument == nil {
+		return
 	}
 
-	// Creation info
-	if doc.CreationInfo != nil {
-		fmt.Println("Creation Info:")
-		fmt.Printf("  Spec Version: %s\n", doc.CreationInfo.SpecVersion)
-		if !doc.CreationInfo.Created.IsZero() {
-			fmt.Printf("  Created:      %s\n", doc.CreationInfo.Created.Format("2006-01-02 15:04:05"))
-		}
-		if len(doc.CreationInfo.CreatedBy) > 0 {
-			fmt.Print("  Created By:   ")
-			for i, agentRef := range doc.CreationInfo.CreatedBy {
-				if i > 0 {
-					fmt.Print(", ")
-				}
-				// Resolve agent reference to get the actual name
-				if agent := doc.GetAgentByID(agentRef.SpdxID); agent != nil && agent.Name != "" {
-					fmt.Print(agent.Name)
-				} else if agentRef.Name != "" {
-					fmt.Print(agentRef.Name)
-				} else {
-					fmt.Print(agentRef.SpdxID)
-				}
-			}
-			fmt.Println()
-		}
-		if len(doc.CreationInfo.CreatedUsing) > 0 {
-			fmt.Print("  Created Using: ")
-			for i, toolRef := range doc.CreationInfo.CreatedUsing {
-				if i > 0 {
-					fmt.Print(", ")
-				}
-				// Resolve tool reference to get the actual name
-				if tool := doc.GetToolByID(toolRef.SpdxID); tool != nil && tool.Name != "" {
-					fmt.Print(tool.Name)
-				} else if toolRef.Name != "" {
-					fmt.Print(toolRef.Name)
-				} else {
-					fmt.Print(toolRef.SpdxID)
-				}
-			}
-			fmt.Println()
-		}
-		fmt.Println()
+	fmt.Println("Document:")
+	fmt.Printf("  Name:        %s\n", doc.SpdxDocument.Name)
+	fmt.Printf("  SPDX ID:     %s\n", doc.SpdxDocument.SpdxID)
+
+	if doc.SpdxDocument.DataLicense != nil {
+		license := resolveDataLicense(doc)
+		fmt.Printf("  Data License: %s\n", license)
 	}
 
-	// Summary statistics
+	if len(doc.SpdxDocument.ProfileConformance) > 0 {
+		fmt.Printf("  Profiles:    %v\n", doc.SpdxDocument.ProfileConformance)
+	}
+
+	if len(doc.SpdxDocument.NamespaceMap) > 0 {
+		fmt.Println("  Namespace Map:")
+		for _, ns := range doc.SpdxDocument.NamespaceMap {
+			fmt.Printf("    %s: %s\n", ns.Prefix, ns.Namespace)
+		}
+	}
+	fmt.Println()
+}
+
+func resolveDataLicense(doc *parse.Document) string {
+	dl := doc.SpdxDocument.DataLicense
+	if lic := doc.GetAnyLicenseInfoByID(dl.SpdxID); lic != nil && lic.Name != "" {
+		return lic.Name
+	}
+	if dl.Name != "" {
+		return dl.Name
+	}
+	return dl.SpdxID
+}
+
+func printCreationInfo(doc *parse.Document) {
+	if doc.CreationInfo == nil {
+		return
+	}
+
+	fmt.Println("Creation Info:")
+	fmt.Printf("  Spec Version: %s\n", doc.CreationInfo.SpecVersion)
+
+	if !doc.CreationInfo.Created.IsZero() {
+		fmt.Printf("  Created:      %s\n", doc.CreationInfo.Created.Format("2006-01-02 15:04:05"))
+	}
+
+	if len(doc.CreationInfo.CreatedBy) > 0 {
+		names := resolveAgentNames(doc, doc.CreationInfo.CreatedBy)
+		fmt.Printf("  Created By:   %s\n", strings.Join(names, ", "))
+	}
+
+	if len(doc.CreationInfo.CreatedUsing) > 0 {
+		names := resolveToolNames(doc, doc.CreationInfo.CreatedUsing)
+		fmt.Printf("  Created Using: %s\n", strings.Join(names, ", "))
+	}
+	fmt.Println()
+}
+
+func printSummary(doc *parse.Document) {
 	fmt.Println("Summary:")
 	fmt.Printf("  Packages:      %d\n", len(doc.Packages))
 	fmt.Printf("  Files:         %d\n", len(doc.Files))
@@ -146,319 +147,311 @@ func printDocumentInfo(doc *parse.Document, showFiles bool) {
 	fmt.Printf("  Persons:       %d\n", len(doc.Persons))
 	fmt.Printf("  SoftwareAgents:%d\n", len(doc.SoftwareAgents))
 	fmt.Printf("  Tools:         %d\n", len(doc.Tools))
-	fmt.Printf("  Licenses:      %d\n", len(doc.AnyLicenseInfos)+len(doc.ConjunctiveLicenseSets)+len(doc.CustomLicenses)+len(doc.CustomLicenseAdditions)+len(doc.DisjunctiveLicenseSets)+len(doc.IndividualLicensingInfos)+len(doc.ListedLicenses)+len(doc.ListedLicenseExceptions)+len(doc.LicenseExpressions)+len(doc.OrLaterOperators)+len(doc.SimpleLicensingTexts)+len(doc.WithAdditionOperators))
-
-	fmt.Printf("  IndividualLicensingInfos: %d\n", len(doc.IndividualLicensingInfos))
+	fmt.Printf("  Licenses:      %d\n", countLicenses(doc))
 	fmt.Println()
+}
 
-	// Packages
-	if len(doc.Packages) > 0 {
-		fmt.Println("Packages:")
-		for _, pkg := range doc.Packages {
-			fmt.Printf("  - %s\n", pkg.Name)
-			if pkg.PackageVersion != "" {
-				fmt.Printf("      Version: %s\n", pkg.PackageVersion)
-			}
-			if pkg.PackageUrl != "" {
-				fmt.Printf("      PURL:    %s\n", pkg.PackageUrl)
-			}
-			if pkg.DownloadLocation != "" {
-				fmt.Printf("      Download: %s\n", pkg.DownloadLocation)
-			}
-			if pkg.PrimaryPurpose != "" {
-				fmt.Printf("      Purpose: %s\n", pkg.PrimaryPurpose)
-			}
-			// Display CreatedBy agents
-			if len(pkg.CreationInfo.CreatedBy) > 0 {
-				fmt.Print("      Created By: ")
-				for i, agent := range pkg.CreationInfo.CreatedBy {
-					if i > 0 {
-						fmt.Print(", ")
-					}
-					// Resolve agent reference to get the actual name
-					if agentObj := doc.GetAgentByID(agent.SpdxID); agentObj != nil && agentObj.Name != "" {
-						fmt.Print(agentObj.Name)
-					} else if agent.Name != "" {
-						fmt.Print(agent.Name)
-					} else {
-						fmt.Print(agent.SpdxID)
-					}
-				}
-				fmt.Println()
-			}
-			// Display OriginatedBy agents
-			if len(pkg.OriginatedBy) > 0 {
-				fmt.Print("      Originated By: ")
-				for i, agent := range pkg.OriginatedBy {
-					if i > 0 {
-						fmt.Print(", ")
-					}
-					// Resolve agent reference to get the actual name
-					if agentObj := doc.GetAgentByID(agent.SpdxID); agentObj != nil && agentObj.Name != "" {
-						fmt.Print(agentObj.Name)
-					} else if agent.Name != "" {
-						fmt.Print(agent.Name)
-					} else {
-						fmt.Print(agent.SpdxID)
-					}
-				}
-				fmt.Println()
-			}
-			// Display SuppliedBy agent
-			if pkg.SuppliedBy != nil {
-				fmt.Print("      Supplied By: ")
-				// Resolve agent reference to get the actual name
-				if agentObj := doc.GetAgentByID(pkg.SuppliedBy.SpdxID); agentObj != nil && agentObj.Name != "" {
-					fmt.Print(agentObj.Name)
-				} else if pkg.SuppliedBy.Name != "" {
-					fmt.Print(pkg.SuppliedBy.Name)
-				} else {
-					fmt.Print(pkg.SuppliedBy.SpdxID)
-				}
-				fmt.Println()
-			}
-			// Display dependencies using parse interface
-			deps := doc.GetDependenciesFor(pkg.SpdxID)
-			if len(deps) > 0 {
-				fmt.Printf("      Dependencies: %d\n", len(deps))
-				for _, dep := range deps {
-					if dep.PackageVersion != "" {
-						fmt.Printf("        - %s@%s\n", dep.Name, dep.PackageVersion)
-					} else {
-						fmt.Printf("        - %s\n", dep.Name)
-					}
-				}
-			}
+func countLicenses(doc *parse.Document) int {
+	return len(doc.AnyLicenseInfos) +
+		len(doc.ConjunctiveLicenseSets) +
+		len(doc.CustomLicenses) +
+		len(doc.CustomLicenseAdditions) +
+		len(doc.DisjunctiveLicenseSets) +
+		len(doc.IndividualLicensingInfos) +
+		len(doc.ListedLicenses) +
+		len(doc.ListedLicenseExceptions) +
+		len(doc.LicenseExpressions) +
+		len(doc.OrLaterOperators) +
+		len(doc.SimpleLicensingTexts) +
+		len(doc.WithAdditionOperators)
+}
 
-			// Display licenses using parse interface
-			licInfo := doc.GetLicensesFor(pkg.SpdxID)
-			if len(licInfo.ConcludedLicenses) > 0 || len(licInfo.DeclaredLicenses) > 0 {
-				fmt.Println("      Licenses:")
-				if len(licInfo.ConcludedLicenses) > 0 {
-					fmt.Printf("        Concluded: ")
-					for i, lic := range licInfo.ConcludedLicenses {
-						if i > 0 {
-							fmt.Print(", ")
-						}
-						fmt.Print(lic.Name)
-					}
-					fmt.Println()
-				}
-				if len(licInfo.DeclaredLicenses) > 0 {
-					fmt.Printf("        Declared: ")
-					for i, lic := range licInfo.DeclaredLicenses {
-						if i > 0 {
-							fmt.Print(", ")
-						}
-						fmt.Print(lic.Name)
-					}
-					fmt.Println()
-				}
-			}
+// =============================================================================
+// Package Printing
+// =============================================================================
 
-			// Display security info using parse interface
-			secInfo := doc.GetSecurityInfoFor(pkg.SpdxID)
-			if len(secInfo.Relationships) > 0 {
-				fmt.Printf("      Security: %d relationship(s)\n", len(secInfo.Relationships))
-				for _, rel := range secInfo.Relationships {
-					fmt.Printf("        - %s\n", rel.RelationshipType)
-				}
-			}
-
-			// Display build info using parse interface
-			buildInfo := doc.GetBuildInfoFor(pkg.SpdxID)
-			if len(buildInfo.Relationships) > 0 {
-				fmt.Printf("      Build: %d relationship(s)\n", len(buildInfo.Relationships))
-				for _, rel := range buildInfo.Relationships {
-					fmt.Printf("        - %s\n", rel.RelationshipType)
-				}
-			}
-
-			// Display annotations using parse interface
-			annotations := doc.GetAnnotationsFor(pkg.SpdxID)
-			if len(annotations) > 0 {
-				fmt.Printf("      Annotations: %d\n", len(annotations))
-				for _, ann := range annotations {
-					fmt.Printf("        - [%s] %s\n", ann.AnnotationType, ann.Statement)
-				}
-			}
-
-			// Display contained files/packages using parse interface
-			containment := doc.GetContainmentFor(pkg.SpdxID)
-			if len(containment.Files) > 0 || len(containment.Packages) > 0 {
-				totalContained := len(containment.Files) + len(containment.Packages)
-				fmt.Printf("      Contains: %d", totalContained)
-				if containment.Completeness != "" {
-					fmt.Printf(" (%s)", containment.Completeness)
-				}
-				fmt.Println()
-				for _, file := range containment.Files {
-					purpose := ""
-					if file.PrimaryPurpose != "" {
-						purpose = fmt.Sprintf(" [%s]", file.PrimaryPurpose)
-					}
-					fmt.Printf("        - %s%s\n", file.Name, purpose)
-				}
-				for _, subPkg := range containment.Packages {
-					version := ""
-					if subPkg.PackageVersion != "" {
-						version = "@" + subPkg.PackageVersion
-					}
-					fmt.Printf("        - %s%s\n", subPkg.Name, version)
-				}
-			}
-		}
-		fmt.Println()
+func printPackages(doc *parse.Document) {
+	if len(doc.Packages) == 0 {
+		return
 	}
 
-	// Files
-	if showFiles && len(doc.Files) > 0 {
-		fmt.Println("Files:")
-		for _, file := range doc.Files {
-			fmt.Printf("  - %s\n", file.Name)
-			if file.ContentType != "" {
-				fmt.Printf("      Content Type: %s\n", file.ContentType)
-			}
-			if file.PrimaryPurpose != "" {
-				fmt.Printf("      Purpose: %s\n", file.PrimaryPurpose)
-			}
-
-			// Display licenses using parse interface
-			licInfo := doc.GetLicensesFor(file.SpdxID)
-			if len(licInfo.ConcludedLicenses) > 0 || len(licInfo.DeclaredLicenses) > 0 {
-				fmt.Println("      Licenses:")
-				if len(licInfo.ConcludedLicenses) > 0 {
-					fmt.Printf("        Concluded: ")
-					for i, lic := range licInfo.ConcludedLicenses {
-						if i > 0 {
-							fmt.Print(", ")
-						}
-						fmt.Print(lic.Name)
-					}
-					fmt.Println()
-				}
-				if len(licInfo.DeclaredLicenses) > 0 {
-					fmt.Printf("        Declared: ")
-					for i, lic := range licInfo.DeclaredLicenses {
-						if i > 0 {
-							fmt.Print(", ")
-						}
-						fmt.Print(lic.Name)
-					}
-					fmt.Println()
-				}
-			}
-
-			// Display copyright text if available
-			if file.CopyrightText != "" && file.CopyrightText != "NOASSERTION" {
-				fmt.Printf("      Copyright: %s\n", file.CopyrightText)
-			}
-
-			// Display build info using parse interface
-			buildInfo := doc.GetBuildInfoFor(file.SpdxID)
-			if len(buildInfo.Relationships) > 0 {
-				fmt.Printf("      Build: %d relationship(s)\n", len(buildInfo.Relationships))
-				// for _, rel := range buildInfo.Relationships {
-				// 	fmt.Printf("        - %s", rel.RelationshipType)
-				// 	if len(rel.To) > 0 {
-				// 		fmt.Printf(" ->")
-				// 		for i, toElem := range rel.To {
-				// 			if i > 0 {
-				// 				fmt.Printf(",")
-				// 			}
-				// 			targetName := toElem.SpdxID
-				// 			// Try to resolve the target element name
-				// 			if rel.RelationshipType == "hasInput" || rel.RelationshipType == "hasOutput" {
-				// 				// Find the target element
-				// 				for _, f := range doc.Files {
-				// 					if f.SpdxID == toElem.SpdxID {
-				// 						targetName = f.Name
-				// 						break
-				// 					}
-				// 				}
-				// 			}
-				// 			fmt.Printf(" %s", targetName)
-				// 		}
-				// 	}
-				// 	fmt.Println()
-				// }
-			}
-
-			// Display security info using parse interface
-			secInfo := doc.GetSecurityInfoFor(file.SpdxID)
-			if len(secInfo.Relationships) > 0 {
-				fmt.Printf("      Security: %d relationship(s)\n", len(secInfo.Relationships))
-				for _, rel := range secInfo.Relationships {
-					fmt.Printf("        - %s\n", rel.RelationshipType)
-				}
-			}
-
-			// Display annotations using parse interface
-			annotations := doc.GetAnnotationsFor(file.SpdxID)
-			if len(annotations) > 0 {
-				fmt.Printf("      Annotations: %d\n", len(annotations))
-				for _, ann := range annotations {
-					fmt.Printf("        - [%s] %s\n", ann.AnnotationType, ann.Statement)
-				}
-			}
-		}
-		fmt.Println()
+	fmt.Println("Packages:")
+	for _, pkg := range doc.Packages {
+		printPackage(doc, pkg)
 	}
+	fmt.Println()
+}
 
-	// Relationships
-	if len(doc.Relationships) > 0 {
-		fmt.Println("Relationship Types:")
-		relStats := make(map[string]int)
-		for _, rel := range doc.Relationships {
-			relStats[string(rel.RelationshipType)]++
-		}
-		for relType, count := range relStats {
-			fmt.Printf("  %s: %d\n", relType, count)
-		}
-		fmt.Println()
+func printPackage(doc *parse.Document, pkg *spdx.Package) {
+	fmt.Printf("  - %s\n", pkg.Name)
+	printPackageBasicInfo(pkg)
+	printPackageAgents(doc, pkg)
+	printPackageDependencies(doc, pkg)
+	printElementLicenses(doc, pkg.SpdxID, "      ")
+	printElementSecurityInfo(doc, pkg.SpdxID, "      ")
+	printElementBuildInfo(doc, pkg.SpdxID, "      ")
+	printElementAnnotations(doc, pkg.SpdxID, "      ")
+	printPackageContainment(doc, pkg)
+}
+
+func printPackageBasicInfo(pkg *spdx.Package) {
+	if pkg.PackageVersion != "" {
+		fmt.Printf("      Version: %s\n", pkg.PackageVersion)
 	}
-
-	// Agents
-	if len(doc.Organizations) > 0 || len(doc.Persons) > 0 || len(doc.SoftwareAgents) > 0 {
-		fmt.Println("Agents:")
-		for _, org := range doc.Organizations {
-			fmt.Printf("  - [Organization] %s\n", org.Name)
-		}
-		for _, person := range doc.Persons {
-			fmt.Printf("  - [Person] %s\n", person.Name)
-		}
-		for _, sa := range doc.SoftwareAgents {
-			fmt.Printf("  - [SoftwareAgent] %s\n", sa.Name)
-		}
-		fmt.Println()
+	if pkg.PackageUrl != "" {
+		fmt.Printf("      PURL:    %s\n", pkg.PackageUrl)
 	}
-
-	// Tools
-	if len(doc.Tools) > 0 {
-		fmt.Println("Tools:")
-		for _, tool := range doc.Tools {
-			fmt.Printf("  - %s\n", tool.Name)
-		}
-		fmt.Println()
+	if pkg.DownloadLocation != "" {
+		fmt.Printf("      Download: %s\n", pkg.DownloadLocation)
 	}
-
-
-
-	// Individual Licensing Infos
-	if len(doc.IndividualLicensingInfos) > 0 {
-		fmt.Println("Individual Licensing Infos:")
-		for _, ili := range doc.IndividualLicensingInfos {
-			fmt.Printf("  - %s\n", ili.Name)
-		}
-		fmt.Println()
+	if pkg.PrimaryPurpose != "" {
+		fmt.Printf("      Purpose: %s\n", pkg.PrimaryPurpose)
 	}
 }
+
+func printPackageAgents(doc *parse.Document, pkg *spdx.Package) {
+	if len(pkg.CreationInfo.CreatedBy) > 0 {
+		names := resolveAgentNames(doc, pkg.CreationInfo.CreatedBy)
+		fmt.Printf("      Created By: %s\n", strings.Join(names, ", "))
+	}
+
+	if len(pkg.OriginatedBy) > 0 {
+		names := resolveAgentNames(doc, pkg.OriginatedBy)
+		fmt.Printf("      Originated By: %s\n", strings.Join(names, ", "))
+	}
+
+	if pkg.SuppliedBy != nil {
+		name := resolveAgentName(doc, pkg.SuppliedBy)
+		fmt.Printf("      Supplied By: %s\n", name)
+	}
+}
+
+func printPackageDependencies(doc *parse.Document, pkg *spdx.Package) {
+	deps := doc.GetDependenciesFor(pkg.SpdxID)
+	if len(deps) == 0 {
+		return
+	}
+
+	fmt.Printf("      Dependencies: %d\n", len(deps))
+	for _, dep := range deps {
+		if dep.PackageVersion != "" {
+			fmt.Printf("        - %s@%s\n", dep.Name, dep.PackageVersion)
+		} else {
+			fmt.Printf("        - %s\n", dep.Name)
+		}
+	}
+}
+
+func printPackageContainment(doc *parse.Document, pkg *spdx.Package) {
+	containment := doc.GetContainmentFor(pkg.SpdxID)
+	if len(containment.Files) == 0 && len(containment.Packages) == 0 {
+		return
+	}
+
+	total := len(containment.Files) + len(containment.Packages)
+	fmt.Printf("      Contains: %d", total)
+	if containment.Completeness != "" {
+		fmt.Printf(" (%s)", containment.Completeness)
+	}
+	fmt.Println()
+
+	for _, file := range containment.Files {
+		purpose := ""
+		if file.PrimaryPurpose != "" {
+			purpose = fmt.Sprintf(" [%s]", file.PrimaryPurpose)
+		}
+		fmt.Printf("        - %s%s\n", file.Name, purpose)
+	}
+
+	for _, subPkg := range containment.Packages {
+		version := ""
+		if subPkg.PackageVersion != "" {
+			version = "@" + subPkg.PackageVersion
+		}
+		fmt.Printf("        - %s%s\n", subPkg.Name, version)
+	}
+}
+
+// =============================================================================
+// File Printing
+// =============================================================================
+
+func printFiles(doc *parse.Document) {
+	if len(doc.Files) == 0 {
+		return
+	}
+
+	fmt.Println("Files:")
+	for _, file := range doc.Files {
+		printFile(doc, file)
+	}
+	fmt.Println()
+}
+
+func printFile(doc *parse.Document, file *spdx.File) {
+	fmt.Printf("  - %s\n", file.Name)
+
+	if file.ContentType != "" {
+		fmt.Printf("      Content Type: %s\n", file.ContentType)
+	}
+	if file.PrimaryPurpose != "" {
+		fmt.Printf("      Purpose: %s\n", file.PrimaryPurpose)
+	}
+
+	printElementLicenses(doc, file.SpdxID, "      ")
+
+	if file.CopyrightText != "" && file.CopyrightText != "NOASSERTION" {
+		fmt.Printf("      Copyright: %s\n", file.CopyrightText)
+	}
+
+	printElementBuildInfo(doc, file.SpdxID, "      ")
+	printElementSecurityInfo(doc, file.SpdxID, "      ")
+	printElementAnnotations(doc, file.SpdxID, "      ")
+}
+
+// =============================================================================
+// Shared Element Info Printing
+// =============================================================================
+
+func printElementLicenses(doc *parse.Document, spdxID, indent string) {
+	licInfo := doc.GetLicensesFor(spdxID)
+	if len(licInfo.ConcludedLicenses) == 0 && len(licInfo.DeclaredLicenses) == 0 {
+		return
+	}
+
+	fmt.Println(indent + "Licenses:")
+	if len(licInfo.ConcludedLicenses) > 0 {
+		names := getLicenseNames(licInfo.ConcludedLicenses)
+		fmt.Printf("%s  Concluded: %s\n", indent, strings.Join(names, ", "))
+	}
+	if len(licInfo.DeclaredLicenses) > 0 {
+		names := getLicenseNames(licInfo.DeclaredLicenses)
+		fmt.Printf("%s  Declared: %s\n", indent, strings.Join(names, ", "))
+	}
+}
+
+func printElementSecurityInfo(doc *parse.Document, spdxID, indent string) {
+	secInfo := doc.GetSecurityInfoFor(spdxID)
+	if len(secInfo.Relationships) == 0 {
+		return
+	}
+
+	fmt.Printf("%sSecurity: %d relationship(s)\n", indent, len(secInfo.Relationships))
+	for _, rel := range secInfo.Relationships {
+		fmt.Printf("%s  - %s\n", indent, rel.RelationshipType)
+	}
+}
+
+func printElementBuildInfo(doc *parse.Document, spdxID, indent string) {
+	buildInfo := doc.GetBuildInfoFor(spdxID)
+	if len(buildInfo.Relationships) == 0 {
+		return
+	}
+
+	fmt.Printf("%sBuild: %d relationship(s)\n", indent, len(buildInfo.Relationships))
+	for _, rel := range buildInfo.Relationships {
+		fmt.Printf("%s  - %s\n", indent, rel.RelationshipType)
+	}
+}
+
+func printElementAnnotations(doc *parse.Document, spdxID, indent string) {
+	annotations := doc.GetAnnotationsFor(spdxID)
+	if len(annotations) == 0 {
+		return
+	}
+
+	fmt.Printf("%sAnnotations: %d\n", indent, len(annotations))
+	for _, ann := range annotations {
+		fmt.Printf("%s  - [%s] %s\n", indent, ann.AnnotationType, ann.Statement)
+	}
+}
+
+// =============================================================================
+// Other Sections
+// =============================================================================
+
+func printRelationshipStats(doc *parse.Document) {
+	if len(doc.Relationships) == 0 {
+		return
+	}
+
+	fmt.Println("Relationship Types:")
+	stats := make(map[string]int)
+	for _, rel := range doc.Relationships {
+		stats[string(rel.RelationshipType)]++
+	}
+	for relType, count := range stats {
+		fmt.Printf("  %s: %d\n", relType, count)
+	}
+	fmt.Println()
+}
+
+func printAgents(doc *parse.Document) {
+	if len(doc.Organizations) == 0 && len(doc.Persons) == 0 && len(doc.SoftwareAgents) == 0 {
+		return
+	}
+
+	fmt.Println("Agents:")
+	for _, org := range doc.Organizations {
+		fmt.Printf("  - [Organization] %s\n", org.Name)
+	}
+	for _, person := range doc.Persons {
+		fmt.Printf("  - [Person] %s\n", person.Name)
+	}
+	for _, sa := range doc.SoftwareAgents {
+		fmt.Printf("  - [SoftwareAgent] %s\n", sa.Name)
+	}
+	fmt.Println()
+}
+
+func printTools(doc *parse.Document) {
+	if len(doc.Tools) == 0 {
+		return
+	}
+
+	fmt.Println("Tools:")
+	for _, tool := range doc.Tools {
+		fmt.Printf("  - %s\n", tool.Name)
+	}
+	fmt.Println()
+}
+
+func printLicensingInfos(doc *parse.Document) {
+	if len(doc.IndividualLicensingInfos) == 0 {
+		return
+	}
+
+	fmt.Println("Individual Licensing Infos:")
+	for _, ili := range doc.IndividualLicensingInfos {
+		fmt.Printf("  - %s\n", ili.Name)
+	}
+	fmt.Println()
+}
+
+// =============================================================================
+// Agent Filtered View
+// =============================================================================
 
 func printAgentFilteredInfo(doc *parse.Document, agentType string) {
 	fmt.Printf("=== Agent Filter: %s ===\n", agentType)
 	fmt.Println()
 
-	// Collect agent IDs based on type
+	agentIDs, agents := collectAgentsByType(doc, agentType)
+	if agentIDs == nil {
+		fmt.Fprintf(os.Stderr, "Invalid agent type: %s. Use 'organization', 'person', or 'software'\n", agentType)
+		os.Exit(1)
+	}
+
+	if len(agentIDs) == 0 {
+		fmt.Printf("No agents of type '%s' found in the document.\n", agentType)
+		return
+	}
+
+	printAgentList(agents, agentType)
+	printAgentAssociations(doc, agentIDs, agentType)
+}
+
+func collectAgentsByType(doc *parse.Document, agentType string) ([]string, []interface{}) {
 	var agentIDs []string
 	var agents []interface{}
 
@@ -479,16 +472,13 @@ func printAgentFilteredInfo(doc *parse.Document, agentType string) {
 			agents = append(agents, sa)
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "Invalid agent type: %s. Use 'organization', 'person', or 'software'\n", agentType)
-		os.Exit(1)
+		return nil, nil
 	}
 
-	if len(agentIDs) == 0 {
-		fmt.Printf("No agents of type '%s' found in the document.\n", agentType)
-		return
-	}
+	return agentIDs, agents
+}
 
-	// Display the agents
+func printAgentList(agents []interface{}, agentType string) {
 	fmt.Printf("Found %d %s agent(s):\n", len(agents), agentType)
 	for _, agent := range agents {
 		switch a := agent.(type) {
@@ -501,101 +491,162 @@ func printAgentFilteredInfo(doc *parse.Document, agentType string) {
 		}
 	}
 	fmt.Println()
+}
 
-	// Find elements associated with these agents
+func printAgentAssociations(doc *parse.Document, agentIDs []string, agentType string) {
 	fmt.Println("Associated Elements:")
 	fmt.Println()
 
 	for _, agentID := range agentIDs {
-		agentName := getAgentName(doc, agentID, agentType)
+		agentName := getAgentNameByType(doc, agentID, agentType)
 		fmt.Printf("Agent: %s (ID: %s)\n", agentName, agentID)
 
-		// Check document creation
-		if doc.CreationInfo != nil {
-			for _, creatorRef := range doc.CreationInfo.CreatedBy {
-				if creatorRef.SpdxID == agentID {
-					fmt.Printf("  - Created Document: %s\n", getElementInfo(doc, doc.SpdxDocument.SpdxID))
-					break
-				}
-			}
-		}
+		printAgentDocumentCreation(doc, agentID)
+		printAgentCreatedElements(doc, agentID)
+		printAgentRelationships(doc, agentID)
+		printAgentAnnotations(doc, agentID)
+		printAgentPackageAssociations(doc, agentID)
 
-		// Find all elements created by this agent
-		createdElements := findElementsCreatedByAgent(doc, agentID)
-		if len(createdElements) > 0 {
-			fmt.Println("  - Created Elements:")
-			for _, elemID := range createdElements {
-				fmt.Printf("    - %s\n", getElementInfo(doc, elemID))
-			}
-		}
-
-		// Check relationships where agent is involved
-		var relatedElements []string
-		relationshipTypes := make(map[string][]string)
-
-		for _, rel := range doc.Relationships {
-			if rel.From.SpdxID == agentID {
-				for _, to := range rel.To {
-					relatedElements = append(relatedElements, to.SpdxID)
-					relationshipTypes[string(rel.RelationshipType)] = append(relationshipTypes[string(rel.RelationshipType)], to.SpdxID)
-				}
-			}
-			for _, to := range rel.To {
-				if to.SpdxID == agentID {
-					relatedElements = append(relatedElements, rel.From.SpdxID)
-					relType := "(reverse) " + string(rel.RelationshipType)
-					relationshipTypes[relType] = append(relationshipTypes[relType], rel.From.SpdxID)
-				}
-			}
-		}
-
-		if len(relatedElements) > 0 {
-			fmt.Println("  - Involved in Relationships:")
-			for relType, elements := range relationshipTypes {
-				fmt.Printf("    %s:\n", relType)
-				for _, elemID := range elements {
-					elemInfo := getElementInfo(doc, elemID)
-					fmt.Printf("      - %s\n", elemInfo)
-				}
-			}
-		}
-
-		// Check annotations made by these agents
-		var annotatedElements []string
-		for _, ann := range doc.Annotations {
-			for _, creator := range ann.CreationInfo.CreatedBy {
-				if creator.SpdxID == agentID {
-					annotatedElements = append(annotatedElements, ann.Subject.SpdxID)
-					break
-				}
-			}
-		}
-
-		if len(annotatedElements) > 0 {
-			fmt.Println("  - Authored Annotations:")
-			for _, elemID := range annotatedElements {
-				elemInfo := getElementInfo(doc, elemID)
-				fmt.Printf("    - Annotated: %s\n", elemInfo)
-			}
-		}
-
-		// Check packages associated with these agents (OriginatedBy, SuppliedBy)
-		pkgs := findPackagesByAgent(doc, agentID)
-		if len(pkgs) > 0 {
-			fmt.Println("  - Associated with Packages:")
-			for _, pkg := range pkgs {
-				pkgInfo := getElementInfo(doc, pkg.SpdxID)
-				fmt.Printf("    - %s\n", pkgInfo)
-			}
-		}
 		fmt.Println()
 	}
+}
+
+func printAgentDocumentCreation(doc *parse.Document, agentID string) {
+	if doc.CreationInfo == nil {
+		return
+	}
+
+	for _, creatorRef := range doc.CreationInfo.CreatedBy {
+		if creatorRef.SpdxID == agentID {
+			fmt.Printf("  - Created Document: %s\n", getElementInfo(doc, doc.SpdxDocument.SpdxID))
+			break
+		}
+	}
+}
+
+func printAgentCreatedElements(doc *parse.Document, agentID string) {
+	elements := findElementsCreatedByAgent(doc, agentID)
+	if len(elements) == 0 {
+		return
+	}
+
+	fmt.Println("  - Created Elements:")
+	for _, elemID := range elements {
+		fmt.Printf("    - %s\n", getElementInfo(doc, elemID))
+	}
+}
+
+func printAgentRelationships(doc *parse.Document, agentID string) {
+	relationshipTypes := make(map[string][]string)
+
+	for _, rel := range doc.Relationships {
+		if rel.From.SpdxID == agentID {
+			for _, to := range rel.To {
+				key := string(rel.RelationshipType)
+				relationshipTypes[key] = append(relationshipTypes[key], to.SpdxID)
+			}
+		}
+		for _, to := range rel.To {
+			if to.SpdxID == agentID {
+				key := "(reverse) " + string(rel.RelationshipType)
+				relationshipTypes[key] = append(relationshipTypes[key], rel.From.SpdxID)
+			}
+		}
+	}
+
+	if len(relationshipTypes) == 0 {
+		return
+	}
+
+	fmt.Println("  - Involved in Relationships:")
+	for relType, elements := range relationshipTypes {
+		fmt.Printf("    %s:\n", relType)
+		for _, elemID := range elements {
+			fmt.Printf("      - %s\n", getElementInfo(doc, elemID))
+		}
+	}
+}
+
+func printAgentAnnotations(doc *parse.Document, agentID string) {
+	var annotatedElements []string
+	for _, ann := range doc.Annotations {
+		for _, creator := range ann.CreationInfo.CreatedBy {
+			if creator.SpdxID == agentID {
+				annotatedElements = append(annotatedElements, ann.Subject.SpdxID)
+				break
+			}
+		}
+	}
+
+	if len(annotatedElements) == 0 {
+		return
+	}
+
+	fmt.Println("  - Authored Annotations:")
+	for _, elemID := range annotatedElements {
+		fmt.Printf("    - Annotated: %s\n", getElementInfo(doc, elemID))
+	}
+}
+
+func printAgentPackageAssociations(doc *parse.Document, agentID string) {
+	pkgs := findPackagesByAgent(doc, agentID)
+	if len(pkgs) == 0 {
+		return
+	}
+
+	fmt.Println("  - Associated with Packages:")
+	for _, pkg := range pkgs {
+		fmt.Printf("    - %s\n", getElementInfo(doc, pkg.SpdxID))
+	}
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+func resolveAgentNames(doc *parse.Document, agents []spdx.Agent) []string {
+	names := make([]string, 0, len(agents))
+	for _, agent := range agents {
+		names = append(names, resolveAgentName(doc, &agent))
+	}
+	return names
+}
+
+func resolveAgentName(doc *parse.Document, agent *spdx.Agent) string {
+	if resolved := doc.GetAgentByID(agent.SpdxID); resolved != nil && resolved.Name != "" {
+		return resolved.Name
+	}
+	if agent.Name != "" {
+		return agent.Name
+	}
+	return agent.SpdxID
+}
+
+func resolveToolNames(doc *parse.Document, tools []spdx.Tool) []string {
+	names := make([]string, 0, len(tools))
+	for _, tool := range tools {
+		if resolved := doc.GetToolByID(tool.SpdxID); resolved != nil && resolved.Name != "" {
+			names = append(names, resolved.Name)
+		} else if tool.Name != "" {
+			names = append(names, tool.Name)
+		} else {
+			names = append(names, tool.SpdxID)
+		}
+	}
+	return names
+}
+
+func getLicenseNames(licenses []*spdx.AnyLicenseInfo) []string {
+	names := make([]string, 0, len(licenses))
+	for _, lic := range licenses {
+		names = append(names, lic.Name)
+	}
+	return names
 }
 
 func findElementsCreatedByAgent(doc *parse.Document, agentID string) []string {
 	var elementIDs []string
 
-	// Helper function to check creation info
 	isCreatedBy := func(ci *spdx.CreationInfo) bool {
 		if ci == nil {
 			return false
@@ -628,13 +679,11 @@ func findElementsCreatedByAgent(doc *parse.Document, agentID string) []string {
 			elementIDs = append(elementIDs, rel.SpdxID)
 		}
 	}
-	// Annotations are checked separately in printAgentFilteredInfo to show what they annotated
 	for _, tool := range doc.Tools {
 		if isCreatedBy(&tool.CreationInfo) {
 			elementIDs = append(elementIDs, tool.SpdxID)
 		}
 	}
-
 	for _, ili := range doc.IndividualLicensingInfos {
 		if isCreatedBy(&ili.CreationInfo) {
 			elementIDs = append(elementIDs, ili.SpdxID)
@@ -649,31 +698,24 @@ func findPackagesByAgent(doc *parse.Document, agentID string) []*spdx.Package {
 	processed := make(map[string]bool)
 
 	for _, pkg := range doc.Packages {
-		// Check OriginatedBy
 		for _, originator := range pkg.OriginatedBy {
-			if originator.SpdxID == agentID {
-				if !processed[pkg.SpdxID] {
-					foundPackages = append(foundPackages, pkg)
-					processed[pkg.SpdxID] = true
-				}
+			if originator.SpdxID == agentID && !processed[pkg.SpdxID] {
+				foundPackages = append(foundPackages, pkg)
+				processed[pkg.SpdxID] = true
 				break
 			}
 		}
 
-		// Check SuppliedBy
-		if pkg.SuppliedBy != nil && pkg.SuppliedBy.SpdxID == agentID {
-			if !processed[pkg.SpdxID] {
-				foundPackages = append(foundPackages, pkg)
-				processed[pkg.SpdxID] = true
-			}
+		if pkg.SuppliedBy != nil && pkg.SuppliedBy.SpdxID == agentID && !processed[pkg.SpdxID] {
+			foundPackages = append(foundPackages, pkg)
+			processed[pkg.SpdxID] = true
 		}
 	}
 
 	return foundPackages
 }
 
-
-func getAgentName(doc *parse.Document, agentID string, agentType string) string {
+func getAgentNameByType(doc *parse.Document, agentID, agentType string) string {
 	switch agentType {
 	case "organization":
 		for _, org := range doc.Organizations {
@@ -698,62 +740,35 @@ func getAgentName(doc *parse.Document, agentID string, agentType string) string 
 }
 
 func getElementInfo(doc *parse.Document, elemID string) string {
-	// Check packages
-	for _, pkg := range doc.Packages {
-		if pkg.SpdxID == elemID {
-			if pkg.PackageVersion != "" {
-				return fmt.Sprintf("%s@%s (Package, ID: %s)", pkg.Name, pkg.PackageVersion, elemID)
-			}
-			return fmt.Sprintf("%s (Package, ID: %s)", pkg.Name, elemID)
+	if pkg := doc.GetPackageByID(elemID); pkg != nil {
+		if pkg.PackageVersion != "" {
+			return fmt.Sprintf("%s@%s (Package, ID: %s)", pkg.Name, pkg.PackageVersion, elemID)
 		}
+		return fmt.Sprintf("%s (Package, ID: %s)", pkg.Name, elemID)
 	}
 
-	// Check files
-	for _, file := range doc.Files {
-		if file.SpdxID == elemID {
-			return fmt.Sprintf("%s (File, ID: %s)", file.Name, elemID)
-		}
+	if file := doc.GetFileByID(elemID); file != nil {
+		return fmt.Sprintf("%s (File, ID: %s)", file.Name, elemID)
 	}
 
-	// Check snippets
 	for _, snippet := range doc.Snippets {
 		if snippet.SpdxID == elemID {
 			return fmt.Sprintf("%s (Snippet, ID: %s)", snippet.Name, elemID)
 		}
 	}
 
-	// Check tools
-	for _, tool := range doc.Tools {
-		if tool.SpdxID == elemID {
-			return fmt.Sprintf("%s (Tool, ID: %s)", tool.Name, elemID)
-		}
+	if tool := doc.GetToolByID(elemID); tool != nil {
+		return fmt.Sprintf("%s (Tool, ID: %s)", tool.Name, elemID)
 	}
 
-	// Check agents
-	for _, org := range doc.Organizations {
-		if org.SpdxID == elemID {
-			return fmt.Sprintf("%s (Organization, ID: %s)", org.Name, elemID)
-		}
-	}
-	for _, person := range doc.Persons {
-		if person.SpdxID == elemID {
-			return fmt.Sprintf("%s (Person, ID: %s)", person.Name, elemID)
-		}
-	}
-	for _, sa := range doc.SoftwareAgents {
-		if sa.SpdxID == elemID {
-			return fmt.Sprintf("%s (SoftwareAgent, ID: %s)", sa.Name, elemID)
-		}
+	if agent := doc.GetAgentByID(elemID); agent != nil {
+		return fmt.Sprintf("%s (Agent, ID: %s)", agent.Name, elemID)
 	}
 
-	// Check licenses
 	if lic := doc.GetAnyLicenseInfoByID(elemID); lic != nil {
 		return fmt.Sprintf("%s (License, ID: %s)", lic.Name, elemID)
 	}
 
-
-
-	// Check document itself
 	if doc.SpdxDocument != nil && doc.SpdxDocument.SpdxID == elemID {
 		return fmt.Sprintf("%s (Document, ID: %s)", doc.SpdxDocument.Name, elemID)
 	}
