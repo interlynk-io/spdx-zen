@@ -319,7 +319,10 @@ func (d *Document) GetLicensesFor(spdxID string) *LicenseInfo {
 }
 
 // GetAnyLicenseInfoByID returns a license by its SPDX ID.
+// It searches across all license types (AnyLicenseInfo, ListedLicense,
+// IndividualLicensingInfo, LicenseExpression, SimpleLicensingText, etc.)
 func (d *Document) GetAnyLicenseInfoByID(spdxID string) *spdx.AnyLicenseInfo {
+	// Check AnyLicenseInfosByID first
 	if d.AnyLicenseInfosByID != nil {
 		if lic := d.AnyLicenseInfosByID[spdxID]; lic != nil {
 			return lic
@@ -331,6 +334,143 @@ func (d *Document) GetAnyLicenseInfoByID(spdxID string) *spdx.AnyLicenseInfo {
 			}
 		}
 	}
+
+	// Check ListedLicensesByID
+	if d.ListedLicensesByID != nil {
+		if ll := d.ListedLicensesByID[spdxID]; ll != nil {
+			return &ll.AnyLicenseInfo
+		}
+	} else {
+		for _, ll := range d.ListedLicenses {
+			if ll.SpdxID == spdxID {
+				return &ll.AnyLicenseInfo
+			}
+		}
+	}
+
+	// Check IndividualLicensingInfosByID
+	if d.IndividualLicensingInfosByID != nil {
+		if ili := d.IndividualLicensingInfosByID[spdxID]; ili != nil {
+			return &ili.AnyLicenseInfo
+		}
+	} else {
+		for _, ili := range d.IndividualLicensingInfos {
+			if ili.SpdxID == spdxID {
+				return &ili.AnyLicenseInfo
+			}
+		}
+	}
+
+	// Check LicenseExpressionsByID
+	// For LicenseExpression, use the license expression string as the Name if Name is empty
+	if d.LicenseExpressionsByID != nil {
+		if le := d.LicenseExpressionsByID[spdxID]; le != nil {
+			name := le.Name
+			if name == "" {
+				name = le.LicenseExpression
+			}
+			return &spdx.AnyLicenseInfo{
+				Element: spdx.Element{
+					SpdxID: le.SpdxID,
+					Name:   name,
+				},
+			}
+		}
+	} else {
+		for _, le := range d.LicenseExpressions {
+			if le.SpdxID == spdxID {
+				name := le.Name
+				if name == "" {
+					name = le.LicenseExpression
+				}
+				return &spdx.AnyLicenseInfo{
+					Element: spdx.Element{
+						SpdxID: le.SpdxID,
+						Name:   name,
+					},
+				}
+			}
+		}
+	}
+
+	// Check SimpleLicensingTextsByID
+	if d.SimpleLicensingTextsByID != nil {
+		if slt := d.SimpleLicensingTextsByID[spdxID]; slt != nil {
+			return &spdx.AnyLicenseInfo{Element: slt.Element}
+		}
+	} else {
+		for _, slt := range d.SimpleLicensingTexts {
+			if slt.SpdxID == spdxID {
+				return &spdx.AnyLicenseInfo{Element: slt.Element}
+			}
+		}
+	}
+
+	// Check CustomLicensesByID
+	if d.CustomLicensesByID != nil {
+		if cl := d.CustomLicensesByID[spdxID]; cl != nil {
+			return &cl.AnyLicenseInfo
+		}
+	} else {
+		for _, cl := range d.CustomLicenses {
+			if cl.SpdxID == spdxID {
+				return &cl.AnyLicenseInfo
+			}
+		}
+	}
+
+	// Check ConjunctiveLicenseSetsByID
+	if d.ConjunctiveLicenseSetsByID != nil {
+		if cls := d.ConjunctiveLicenseSetsByID[spdxID]; cls != nil {
+			return &cls.AnyLicenseInfo
+		}
+	} else {
+		for _, cls := range d.ConjunctiveLicenseSets {
+			if cls.SpdxID == spdxID {
+				return &cls.AnyLicenseInfo
+			}
+		}
+	}
+
+	// Check DisjunctiveLicenseSetsByID
+	if d.DisjunctiveLicenseSetsByID != nil {
+		if dls := d.DisjunctiveLicenseSetsByID[spdxID]; dls != nil {
+			return &dls.AnyLicenseInfo
+		}
+	} else {
+		for _, dls := range d.DisjunctiveLicenseSets {
+			if dls.SpdxID == spdxID {
+				return &dls.AnyLicenseInfo
+			}
+		}
+	}
+
+	// Check OrLaterOperatorsByID
+	if d.OrLaterOperatorsByID != nil {
+		if olo := d.OrLaterOperatorsByID[spdxID]; olo != nil {
+			return &olo.AnyLicenseInfo
+		}
+	} else {
+		for _, olo := range d.OrLaterOperators {
+			if olo.SpdxID == spdxID {
+				return &olo.AnyLicenseInfo
+			}
+		}
+	}
+
+	// Check WithAdditionOperatorsByID
+	if d.WithAdditionOperatorsByID != nil {
+		if wao := d.WithAdditionOperatorsByID[spdxID]; wao != nil {
+			return &wao.AnyLicenseInfo
+		}
+	} else {
+		for _, wao := range d.WithAdditionOperators {
+			if wao.SpdxID == spdxID {
+				return &wao.AnyLicenseInfo
+			}
+		}
+	}
+
 	// Also check ElementsByID for licenses that might be stored as generic elements
 	if elem := d.ElementsByID[spdxID]; elem != nil {
 		if elemMap, ok := elem.(map[string]interface{}); ok {
@@ -408,6 +548,8 @@ func (d *Document) GetAnnotationsFor(spdxID string) []*spdx.Annotation {
 
 // GetAgentByID returns an agent by its SPDX ID.
 // This is useful for resolving agent references in CreationInfo.
+// To determine the specific agent type, use GetAgentTypeByID or the type-specific
+// methods: GetOrganizationByID, GetPersonByID, GetSoftwareAgentByID.
 func (d *Document) GetAgentByID(spdxID string) *spdx.Agent {
 	if org, ok := d.OrganizationsByID[spdxID]; ok {
 		return &org.Agent
@@ -419,6 +561,47 @@ func (d *Document) GetAgentByID(spdxID string) *spdx.Agent {
 		return &sa.Agent
 	}
 	return nil
+}
+
+// AgentType represents the type of an agent.
+type AgentType string
+
+const (
+	AgentTypeOrganization  AgentType = "Organization"
+	AgentTypePerson        AgentType = "Person"
+	AgentTypeSoftwareAgent AgentType = "SoftwareAgent"
+	AgentTypeUnknown       AgentType = ""
+)
+
+// GetAgentTypeByID returns the type of agent for the given SPDX ID.
+// Returns AgentTypeOrganization, AgentTypePerson, AgentTypeSoftwareAgent,
+// or AgentTypeUnknown if the agent is not found.
+func (d *Document) GetAgentTypeByID(spdxID string) AgentType {
+	if _, ok := d.OrganizationsByID[spdxID]; ok {
+		return AgentTypeOrganization
+	}
+	if _, ok := d.PersonsByID[spdxID]; ok {
+		return AgentTypePerson
+	}
+	if _, ok := d.SoftwareAgentsByID[spdxID]; ok {
+		return AgentTypeSoftwareAgent
+	}
+	return AgentTypeUnknown
+}
+
+// GetOrganizationByID returns an Organization by its SPDX ID, or nil if not found.
+func (d *Document) GetOrganizationByID(spdxID string) *spdx.Organization {
+	return d.OrganizationsByID[spdxID]
+}
+
+// GetPersonByID returns a Person by its SPDX ID, or nil if not found.
+func (d *Document) GetPersonByID(spdxID string) *spdx.Person {
+	return d.PersonsByID[spdxID]
+}
+
+// GetSoftwareAgentByID returns a SoftwareAgent by its SPDX ID, or nil if not found.
+func (d *Document) GetSoftwareAgentByID(spdxID string) *spdx.SoftwareAgent {
+	return d.SoftwareAgentsByID[spdxID]
 }
 
 // GetToolByID returns a tool by its SPDX ID.

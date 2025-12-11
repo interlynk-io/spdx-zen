@@ -532,15 +532,30 @@ func (p *ElementParser) ParseListedLicenseException(elemMap map[string]interface
 }
 
 // ParseLicenseExpression parses a LicenseExpression from a JSON map.
+// It handles both canonical field names and simplelicensing_ prefixed variants.
 func (p *ElementParser) ParseLicenseExpression(elemMap map[string]interface{}) *spdx.LicenseExpression {
 	if elemMap == nil {
 		return nil
 	}
 	le := &spdx.LicenseExpression{}
 	le.AnyLicenseInfo = *p.ParseAnyLicenseInfo(elemMap)
+	// Try canonical field name first, then simplelicensing_ prefixed variant
 	le.LicenseExpression = p.H.GetString(elemMap, "licenseExpression")
+	if le.LicenseExpression == "" {
+		le.LicenseExpression = p.H.GetString(elemMap, "simplelicensing_licenseExpression")
+	}
 	le.LicenseListVersion = p.H.GetString(elemMap, "licenseListVersion")
+	if le.LicenseListVersion == "" {
+		le.LicenseListVersion = p.H.GetString(elemMap, "simplelicensing_licenseListVersion")
+	}
 	if customIdToUris := p.H.GetSlice(elemMap, "customIdToUri"); customIdToUris != nil {
+		for _, customIdToUri := range customIdToUris {
+			if cMap, ok := customIdToUri.(map[string]interface{}); ok {
+				le.CustomIdToUri = append(le.CustomIdToUri, *p.ParseDictionaryEntry(cMap))
+			}
+		}
+	}
+	if customIdToUris := p.H.GetSlice(elemMap, "simplelicensing_customIdToUri"); customIdToUris != nil {
 		for _, customIdToUri := range customIdToUris {
 			if cMap, ok := customIdToUri.(map[string]interface{}); ok {
 				le.CustomIdToUri = append(le.CustomIdToUri, *p.ParseDictionaryEntry(cMap))
@@ -620,12 +635,15 @@ func (p *ElementParser) ParseSpdxDocument(elemMap map[string]interface{}) *spdx.
 		}
 	}
 
-	// Parse namespaceMap
+	// Parse namespaceMap - it's an array of NamespaceMap objects
 	doc.NamespaceMap = []spdx.NamespaceMap{}
-	if nsMap := p.H.GetMap(elemMap, "namespaceMap"); nsMap != nil {
-		for k, v := range nsMap {
-			if vs, ok := v.(string); ok {
-				doc.NamespaceMap = append(doc.NamespaceMap, spdx.NamespaceMap{Prefix: k, Namespace: vs})
+	if nsList := p.H.GetSlice(elemMap, "namespaceMap"); nsList != nil {
+		for _, ns := range nsList {
+			if nsMap, ok := ns.(map[string]interface{}); ok {
+				doc.NamespaceMap = append(doc.NamespaceMap, spdx.NamespaceMap{
+					Prefix:    p.H.GetString(nsMap, "prefix"),
+					Namespace: p.H.GetString(nsMap, "namespace"),
+				})
 			}
 		}
 	}
