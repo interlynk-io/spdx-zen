@@ -141,6 +141,11 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 		VexFixedVulnAssessmentsByID:              make(map[string]*spdx.VexFixedVulnAssessmentRelationship),
 		VexNotAffectedVulnAssessmentsByID:        make(map[string]*spdx.VexNotAffectedVulnAssessmentRelationship),
 		VexUnderInvestigationVulnAssessmentsByID: make(map[string]*spdx.VexUnderInvestigationVulnAssessmentRelationship),
+		AiPackagesByID:                           make(map[string]*spdx.AIPackage),
+		EnergyConsumptionsByID:                   make(map[string]*spdx.EnergyConsumption),
+		EnergyConsumptionDescriptionsByID:        make(map[string]*spdx.EnergyConsumptionDescription),
+		DatasetPackagesByID:                      make(map[string]*spdx.DatasetPackage),
+		BuildsByID:                               make(map[string]*spdx.Build),
 	}
 
 	// Extract @context
@@ -223,6 +228,16 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 		return
 	}
 	if r.handleSecurityElements(doc, elemMap, elemType) {
+		return
+	}
+	// Add new handlers here
+	if r.handleAiElements(doc, elemMap, elemType) {
+		return
+	}
+	if r.handleDatasetElements(doc, elemMap, elemType) {
+		return
+	}
+	if r.handleBuildElements(doc, elemMap, elemType) {
 		return
 	}
 }
@@ -460,6 +475,66 @@ func (r *Reader) handleSecurityElements(doc *Document, elemMap map[string]interf
 		doc.VexUnderInvestigationVulnAssessments = append(doc.VexUnderInvestigationVulnAssessments, vexUnderInvestigation)
 		if vexUnderInvestigation.SpdxID != "" {
 			doc.VexUnderInvestigationVulnAssessmentsByID[vexUnderInvestigation.SpdxID] = vexUnderInvestigation
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+func (r *Reader) handleAiElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	spdxID := r.parser.H.GetString(elemMap, "spdxId")
+
+	switch elemType {
+	case TypeAIPackage:
+		aiPkg := r.parser.ParseAIPackage(elemMap)
+		doc.AiPackages = append(doc.AiPackages, aiPkg)
+		if spdxID != "" {
+			doc.AiPackagesByID[spdxID] = aiPkg
+		}
+	case TypeEnergyConsumption:
+		ec := r.parser.ParseEnergyConsumption(elemMap)
+		doc.EnergyConsumptions = append(doc.EnergyConsumptions, ec)
+		if spdxID != "" {
+			doc.EnergyConsumptionsByID[spdxID] = ec
+		}
+	case TypeEnergyConsumptionDescription:
+		ecd := r.parser.ParseEnergyConsumptionDescription(elemMap)
+		doc.EnergyConsumptionDescriptions = append(doc.EnergyConsumptionDescriptions, ecd)
+		if spdxID != "" {
+			doc.EnergyConsumptionDescriptionsByID[spdxID] = ecd
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+func (r *Reader) handleDatasetElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	spdxID := r.parser.H.GetString(elemMap, "spdxId")
+
+	switch elemType {
+	case TypeDataset: // Note: uses TypeDataset but parses into DatasetPackage
+		datasetPkg := r.parser.ParseDatasetPackage(elemMap)
+		doc.DatasetPackages = append(doc.DatasetPackages, datasetPkg)
+		if spdxID != "" {
+			doc.DatasetPackagesByID[spdxID] = datasetPkg
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+func (r *Reader) handleBuildElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+	spdxID := r.parser.H.GetString(elemMap, "spdxId")
+
+	switch elemType {
+	case TypeBuild:
+		build := r.parser.ParseBuild(elemMap)
+		doc.Builds = append(doc.Builds, build)
+		if spdxID != "" {
+			doc.BuildsByID[spdxID] = build
 		}
 	default:
 		return false

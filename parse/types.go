@@ -78,7 +78,9 @@ const (
 
 // AI/ML element types.
 const (
-	TypeAIPackage ElementType = "ai_AIPackage"
+	TypeAIPackage                    ElementType = "ai_AIPackage"
+	TypeEnergyConsumption            ElementType = "ai_EnergyConsumption"
+	TypeEnergyConsumptionDescription ElementType = "ai_EnergyConsumptionDescription"
 )
 
 // Dataset element types.

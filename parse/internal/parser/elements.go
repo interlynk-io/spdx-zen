@@ -916,6 +916,201 @@ func (p *ElementParser) ParsePackageVerificationCode(elemMap map[string]interfac
 	return pvc
 }
 
+// ParseAIPackage parses an AIPackage from a JSON map.
+func (p *ElementParser) ParseAIPackage(elemMap map[string]interface{}) *spdx.AIPackage {
+	aiPkg := &spdx.AIPackage{}
+	aiPkg.Package = *p.ParsePackage(elemMap) // AIPackage embeds Package
+
+	// EnergyConsumption is a single object, not directly a slice of descriptions
+	if ecMap := p.H.GetMap(elemMap, "energyConsumption"); ecMap != nil {
+		aiPkg.EnergyConsumption = p.ParseEnergyConsumption(ecMap)
+	}
+
+	if mdpp := p.H.GetSlice(elemMap, "modelDataPreprocessing"); mdpp != nil {
+		for _, s := range mdpp {
+			if ss, ok := s.(string); ok {
+				aiPkg.ModelDataPreprocessing = append(aiPkg.ModelDataPreprocessing, ss)
+			}
+		}
+	}
+
+	aiPkg.InformationAboutTraining = p.H.GetString(elemMap, "informationAboutTraining")
+
+	if sra, ok := elemMap["safetyRiskAssessment"].(string); ok {
+		aiPkg.SafetyRiskAssessment = spdx.SafetyRiskAssessmentType(sra)
+	}
+	// Note: Other fields like AutonomyType, Domain, Hyperparameter, etc. are not explicitly parsed here.
+	// This function only addresses the errors found by `go vet`.
+	return aiPkg
+}
+
+// ParseEnergyConsumption parses an EnergyConsumption from a JSON map.
+func (p *ElementParser) ParseEnergyConsumption(elemMap map[string]interface{}) *spdx.EnergyConsumption {
+	if elemMap == nil {
+		return nil
+	}
+	ec := &spdx.EnergyConsumption{}
+	// EnergyConsumption does not embed Element
+
+	if inf := p.H.GetSlice(elemMap, "inferenceEnergyConsumption"); inf != nil {
+		for _, i := range inf {
+			if iMap, ok := i.(map[string]interface{}); ok {
+				ec.InferenceEnergyConsumption = append(ec.InferenceEnergyConsumption, *p.ParseEnergyConsumptionDescription(iMap))
+			}
+		}
+	}
+
+	if tr := p.H.GetSlice(elemMap, "trainingEnergyConsumption"); tr != nil {
+		for _, t := range tr {
+			if tMap, ok := t.(map[string]interface{}); ok {
+				ec.TrainingEnergyConsumption = append(ec.TrainingEnergyConsumption, *p.ParseEnergyConsumptionDescription(tMap))
+			}
+		}
+	}
+
+	if ft := p.H.GetSlice(elemMap, "finetuningEnergyConsumption"); ft != nil {
+		for _, f := range ft {
+			if fMap, ok := f.(map[string]interface{}); ok {
+				ec.FinetuningEnergyConsumption = append(ec.FinetuningEnergyConsumption, *p.ParseEnergyConsumptionDescription(fMap))
+			}
+		}
+	}
+	return ec
+}
+
+// ParseEnergyConsumptionDescription parses an EnergyConsumptionDescription from a JSON map.
+func (p *ElementParser) ParseEnergyConsumptionDescription(elemMap map[string]interface{}) *spdx.EnergyConsumptionDescription {
+	if elemMap == nil {
+		return nil
+	}
+	ecd := &spdx.EnergyConsumptionDescription{}
+	// EnergyConsumptionDescription does not embed Element
+
+	ecd.EnergyQuantity = p.H.GetFloat(elemMap, "energyQuantity")
+	if eu, ok := elemMap["energyUnit"].(string); ok {
+		ecd.EnergyUnit = spdx.EnergyUnitType(eu)
+	}
+	return ecd
+}
+
+// ParseDatasetPackage parses a DatasetPackage from a JSON map.
+func (p *ElementParser) ParseDatasetPackage(elemMap map[string]interface{}) *spdx.DatasetPackage {
+	datasetPkg := &spdx.DatasetPackage{}
+	datasetPkg.Package = *p.ParsePackage(elemMap) // DatasetPackage embeds Package
+
+	if amu := p.H.GetSlice(elemMap, "anonymizationMethodUsed"); amu != nil {
+		for _, s := range amu {
+			if ss, ok := s.(string); ok {
+				datasetPkg.AnonymizationMethodUsed = append(datasetPkg.AnonymizationMethodUsed, ss)
+			}
+		}
+	}
+
+	if cl, ok := elemMap["confidentialityLevel"].(string); ok {
+		datasetPkg.ConfidentialityLevel = spdx.ConfidentialityLevelType(cl)
+	}
+	datasetPkg.DataCollectionProcess = p.H.GetString(elemMap, "dataCollectionProcess")
+
+	if dpp := p.H.GetSlice(elemMap, "dataPreprocessing"); dpp != nil {
+		for _, s := range dpp {
+			if ss, ok := s.(string); ok {
+				datasetPkg.DataPreprocessing = append(datasetPkg.DataPreprocessing, ss)
+			}
+		}
+	}
+
+	if da, ok := elemMap["datasetAvailability"].(string); ok {
+		datasetPkg.DatasetAvailability = spdx.DatasetAvailabilityType(da)
+	}
+	datasetPkg.DatasetNoise = p.H.GetString(elemMap, "datasetNoise")
+	datasetPkg.DatasetSize = p.H.GetInt(elemMap, "datasetSize")
+
+	if dt := p.H.GetSlice(elemMap, "datasetType"); dt != nil {
+		for _, t := range dt {
+			if ts, ok := t.(string); ok {
+				datasetPkg.DatasetType = append(datasetPkg.DatasetType, spdx.DatasetType(ts))
+			}
+		}
+	}
+
+	datasetPkg.DatasetUpdateMechanism = p.H.GetString(elemMap, "datasetUpdateMechanism")
+	// HasSensitivePersonalInformation is PresenceType, not bool
+	if hspi, ok := elemMap["hasSensitivePersonalInformation"].(string); ok {
+		datasetPkg.HasSensitivePersonalInformation = spdx.PresenceType(hspi)
+	}
+	datasetPkg.IntendedUse = p.H.GetString(elemMap, "intendedUse")
+
+	if kb := p.H.GetSlice(elemMap, "knownBias"); kb != nil {
+		for _, s := range kb {
+			if ss, ok := s.(string); ok {
+				datasetPkg.KnownBias = append(datasetPkg.KnownBias, ss)
+			}
+		}
+	}
+	// Sensor is []DictionaryEntry - need to parse this if present
+	if sensors := p.H.GetSlice(elemMap, "sensor"); sensors != nil {
+		for _, sensor := range sensors {
+			if sMap, ok := sensor.(map[string]interface{}); ok {
+				datasetPkg.Sensor = append(datasetPkg.Sensor, *p.ParseDictionaryEntry(sMap))
+			}
+		}
+	}
+	return datasetPkg
+}
+
+// ParseBuild parses a Build from a JSON map.
+func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
+	build := &spdx.Build{}
+	build.Element = p.ParseElement(elemMap) // Build embeds Element
+
+	build.BuildId = p.H.GetString(elemMap, "buildId")
+	build.BuildType = p.H.GetString(elemMap, "buildType")
+
+	if cse := p.H.GetSlice(elemMap, "configSourceEntrypoint"); cse != nil {
+		for _, s := range cse {
+			if ss, ok := s.(string); ok {
+				build.ConfigSourceEntrypoint = append(build.ConfigSourceEntrypoint, ss)
+			}
+		}
+	}
+
+	if csu := p.H.GetSlice(elemMap, "configSourceUri"); csu != nil {
+		for _, s := range csu {
+			if ss, ok := s.(string); ok {
+				build.ConfigSourceUri = append(build.ConfigSourceUri, ss)
+			}
+		}
+	}
+
+	if csd := p.H.GetSlice(elemMap, "configSourceDigest"); csd != nil {
+		for _, digest := range csd {
+			if dMap, ok := digest.(map[string]interface{}); ok {
+				build.ConfigSourceDigest = append(build.ConfigSourceDigest, *p.ParseHash(dMap))
+			}
+		}
+	}
+
+	if params := p.H.GetSlice(elemMap, "parameter"); params != nil {
+		for _, param := range params {
+			if pMap, ok := param.(map[string]interface{}); ok {
+				build.Parameter = append(build.Parameter, *p.ParseDictionaryEntry(pMap))
+			}
+		}
+	}
+
+	build.BuildStartTime = p.H.GetTime(elemMap, "buildStartTime")
+	build.BuildEndTime = p.H.GetTime(elemMap, "buildEndTime")
+
+	if envs := p.H.GetSlice(elemMap, "environment"); envs != nil {
+		for _, env := range envs {
+			if eMap, ok := env.(map[string]interface{}); ok {
+				build.Environment = append(build.Environment, *p.ParseDictionaryEntry(eMap))
+			}
+		}
+	}
+	return build
+}
+
 // GetTime is a helper for parsing time strings.
 func (p *ElementParser) GetTime(elemMap map[string]interface{}, key string) time.Time {
 	return p.H.GetTime(elemMap, key)

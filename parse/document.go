@@ -53,6 +53,17 @@ type Document struct {
 	VexNotAffectedVulnAssessments        []*spdx.VexNotAffectedVulnAssessmentRelationship
 	VexUnderInvestigationVulnAssessments []*spdx.VexUnderInvestigationVulnAssessmentRelationship
 
+	// AI-related elements
+	AiPackages                    []*spdx.AIPackage
+	EnergyConsumptions            []*spdx.EnergyConsumption
+	EnergyConsumptionDescriptions []*spdx.EnergyConsumptionDescription
+
+	// Dataset-related elements
+	DatasetPackages []*spdx.DatasetPackage
+
+	// Build-related elements
+	Builds []*spdx.Build
+
 	// All elements indexed by SPDX ID
 	ElementsByID map[string]interface{}
 
@@ -90,6 +101,16 @@ type Document struct {
 	VexFixedVulnAssessmentsByID              map[string]*spdx.VexFixedVulnAssessmentRelationship
 	VexNotAffectedVulnAssessmentsByID        map[string]*spdx.VexNotAffectedVulnAssessmentRelationship
 	VexUnderInvestigationVulnAssessmentsByID map[string]*spdx.VexUnderInvestigationVulnAssessmentRelationship
+	// AI-related maps
+	AiPackagesByID                    map[string]*spdx.AIPackage
+	EnergyConsumptionsByID            map[string]*spdx.EnergyConsumption
+	EnergyConsumptionDescriptionsByID map[string]*spdx.EnergyConsumptionDescription
+
+	// Dataset-related maps
+	DatasetPackagesByID map[string]*spdx.DatasetPackage
+
+	// Build-related maps
+	BuildsByID map[string]*spdx.Build
 }
 
 // GetName returns the document name
