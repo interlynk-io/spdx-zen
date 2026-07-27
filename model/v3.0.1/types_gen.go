@@ -115,7 +115,7 @@ type Element struct {
 	Description        string               `json:"description,omitempty"`
 	Comment            string               `json:"comment,omitempty"`
 	CreationInfo       CreationInfo         `json:"creationInfo" validate:"required"`
-	VerifiedUsing      []IntegrityMethod    `json:"verifiedUsing,omitempty"`
+	VerifiedUsing      []interface{}        `json:"verifiedUsing,omitempty"`
 	ExternalRef        []ExternalRef        `json:"externalRef,omitempty"`
 	ExternalIdentifier []ExternalIdentifier `json:"externalIdentifier,omitempty"`
 	Extension          []Extension          `json:"extension,omitempty"`
@@ -141,10 +141,10 @@ type ExternalIdentifier struct {
 
 // ExternalMap A map of Element identifiers that are used within an SpdxDocument but defined external to that SpdxDocument.
 type ExternalMap struct {
-	ExternalSpdxId   string            `json:"externalSpdxId" validate:"required,omitempty,url"`
-	VerifiedUsing    []IntegrityMethod `json:"verifiedUsing,omitempty"`
-	LocationHint     string            `json:"locationHint,omitempty" validate:"omitempty,url"`
-	DefiningArtifact *Artifact         `json:"definingArtifact,omitempty"`
+	ExternalSpdxId   string        `json:"externalSpdxId" validate:"required,omitempty,url"`
+	VerifiedUsing    []interface{} `json:"verifiedUsing,omitempty"`
+	LocationHint     string        `json:"locationHint,omitempty" validate:"omitempty,url"`
+	DefiningArtifact *Artifact     `json:"definingArtifact,omitempty"`
 }
 
 // ExternalRef A reference to a resource outside the scope of SPDX-3.0 content related to an Element.
