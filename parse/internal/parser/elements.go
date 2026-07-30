@@ -21,8 +21,14 @@ func NewElementParser() *ElementParser {
 
 // ParseElement parses common element fields from a JSON map.
 func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Element {
+	// Get SpdxID - try @id first (JSON-LD), then spdxId
+	spdxID := p.H.GetString(elemMap, "@id")
+	if spdxID == "" {
+		spdxID = p.H.GetString(elemMap, "spdxId")
+	}
+
 	elem := spdx.Element{
-		SpdxID:      p.H.GetString(elemMap, "spdxId"),
+		SpdxID:      spdxID,
 		Name:        p.H.GetString(elemMap, "name"),
 		Summary:     p.H.GetString(elemMap, "summary"),
 		Description: p.H.GetString(elemMap, "description"),
@@ -41,6 +47,35 @@ func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Elemen
 		for _, e := range ei {
 			if eMap, ok := e.(map[string]interface{}); ok {
 				elem.ExternalIdentifier = append(elem.ExternalIdentifier, *p.ParseExternalIdentifier(eMap))
+			}
+		}
+	}
+
+	// Parse verifiedUsing (checksums/hashes)
+	if vu := p.H.GetSlice(elemMap, "verifiedUsing"); vu != nil {
+		for _, v := range vu {
+			if vMap, ok := v.(map[string]interface{}); ok {
+				// Check if it has hashValue field to determine if it's a Hash
+				if _, hasHashValue := vMap["hashValue"]; hasHashValue {
+					hash := p.ParseHash(vMap)
+					if hash != nil {
+						elem.VerifiedUsing = append(elem.VerifiedUsing, *hash)
+					}
+				} else if _, hasPVC := vMap["packageVerificationCodeExcludedFile"]; hasPVC {
+					// PackageVerificationCode
+					pvc := p.ParsePackageVerificationCode(vMap)
+					if pvc != nil {
+						elem.VerifiedUsing = append(elem.VerifiedUsing, *pvc)
+					}
+				} else if _, hasSig := vMap["signatureValue"]; hasSig {
+					// TODO: Handle Signature type - from Security Profile
+					// Signature type is not yet implemented in the model
+					// For now, fall back to base IntegrityMethod
+					elem.VerifiedUsing = append(elem.VerifiedUsing, p.ParseIntegrityMethod(vMap))
+				} else {
+					// Fallback - base IntegrityMethod or unknown type
+					elem.VerifiedUsing = append(elem.VerifiedUsing, p.ParseIntegrityMethod(vMap))
+				}
 			}
 		}
 	}
@@ -901,7 +936,27 @@ func (p *ElementParser) ParseExternalMap(elemMap map[string]interface{}) *spdx.E
 	if vu := p.H.GetSlice(elemMap, "verifiedUsing"); vu != nil {
 		for _, v := range vu {
 			if vMap, ok := v.(map[string]interface{}); ok {
-				em.VerifiedUsing = append(em.VerifiedUsing, p.ParseIntegrityMethod(vMap))
+				// Check if it has hashValue field to determine if it's a Hash
+				if _, hasHashValue := vMap["hashValue"]; hasHashValue {
+					hash := p.ParseHash(vMap)
+					if hash != nil {
+						em.VerifiedUsing = append(em.VerifiedUsing, *hash)
+					}
+				} else if _, hasPVC := vMap["packageVerificationCodeExcludedFile"]; hasPVC {
+					// PackageVerificationCode
+					pvc := p.ParsePackageVerificationCode(vMap)
+					if pvc != nil {
+						em.VerifiedUsing = append(em.VerifiedUsing, *pvc)
+					}
+				} else if _, hasSig := vMap["signatureValue"]; hasSig {
+					// TODO: Handle Signature type - from Security Profile
+					// Signature type is not yet implemented in the model
+					// For now, fall back to base IntegrityMethod
+					em.VerifiedUsing = append(em.VerifiedUsing, p.ParseIntegrityMethod(vMap))
+				} else {
+					// Fallback - base IntegrityMethod or unknown type
+					em.VerifiedUsing = append(em.VerifiedUsing, p.ParseIntegrityMethod(vMap))
+				}
 			}
 		}
 	}
