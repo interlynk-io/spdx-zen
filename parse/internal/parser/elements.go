@@ -42,8 +42,17 @@ func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Elemen
 		}
 	}
 
-	// Parse externalIdentifier
+	// Parse externalIdentifier (for single values)
 	if ei := p.H.GetSlice(elemMap, "externalIdentifier"); ei != nil {
+		for _, e := range ei {
+			if eMap, ok := e.(map[string]interface{}); ok {
+				elem.ExternalIdentifier = append(elem.ExternalIdentifier, *p.ParseExternalIdentifier(eMap))
+			}
+		}
+	}
+	// Also try plural form (JSON-LD may output "externalIdentifiers")
+	// for multiple values
+	if ei := p.H.GetSlice(elemMap, "externalIdentifiers"); ei != nil {
 		for _, e := range ei {
 			if eMap, ok := e.(map[string]interface{}); ok {
 				elem.ExternalIdentifier = append(elem.ExternalIdentifier, *p.ParseExternalIdentifier(eMap))
@@ -812,6 +821,14 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 
 	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
 		file.PrimaryPurpose = spdx.SoftwarePurpose(pp)
+	}
+
+	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+		for _, purpose := range ap {
+			if ps, ok := purpose.(string); ok {
+				file.AdditionalPurpose = append(file.AdditionalPurpose, spdx.SoftwarePurpose(ps))
+			}
+		}
 	}
 
 	if fk, ok := elemMap["software_fileKind"].(string); ok {
