@@ -12,6 +12,7 @@ type Document struct {
 	Packages                     []*spdx.Package
 	Files                        []*spdx.File
 	Snippets                     []*spdx.Snippet
+	SoftwareArtifacts            []*spdx.SoftwareArtifact
 	Relationships                []*spdx.Relationship
 	LifecycleScopedRelationships []*spdx.LifecycleScopedRelationship
 	Annotations                  []*spdx.Annotation
@@ -23,6 +24,7 @@ type Document struct {
 	Tools                        []*spdx.Tool
 	Bundles                      []*spdx.Bundle
 	Boms                         []*spdx.Bom
+	Sboms                        []*spdx.Sbom
 	DictionaryEntries            []*spdx.DictionaryEntry
 	Hashes                       []*spdx.Hash
 	PackageVerificationCodes     []*spdx.PackageVerificationCode
@@ -74,6 +76,7 @@ type Document struct {
 	// Element type indexes for O(1) lookups
 	PackagesByID                             map[string]*spdx.Package
 	FilesByID                                map[string]*spdx.File
+	SoftwareArtifactsByID                    map[string]*spdx.SoftwareArtifact
 	OrganizationsByID                        map[string]*spdx.Organization
 	PersonsByID                              map[string]*spdx.Person
 	SoftwareAgentsByID                       map[string]*spdx.SoftwareAgent
@@ -177,6 +180,19 @@ func (d *Document) GetFileByID(spdxID string) *spdx.File {
 	for _, file := range d.Files {
 		if file.SpdxID == spdxID {
 			return file
+		}
+	}
+	return nil
+}
+
+// GetSoftwareArtifactByID returns a software artifact by its SPDX ID
+func (d *Document) GetSoftwareArtifactByID(spdxID string) *spdx.SoftwareArtifact {
+	if d.SoftwareArtifactsByID != nil {
+		return d.SoftwareArtifactsByID[spdxID]
+	}
+	for _, sa := range d.SoftwareArtifacts {
+		if sa.SpdxID == spdxID {
+			return sa
 		}
 	}
 	return nil

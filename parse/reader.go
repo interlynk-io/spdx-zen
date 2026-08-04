@@ -114,6 +114,7 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 		RelationshipsToIndex:                     make(map[string][]*spdx.Relationship),
 		PackagesByID:                             make(map[string]*spdx.Package),
 		FilesByID:                                make(map[string]*spdx.File),
+		SoftwareArtifactsByID:                    make(map[string]*spdx.SoftwareArtifact),
 		OrganizationsByID:                        make(map[string]*spdx.Organization),
 		PersonsByID:                              make(map[string]*spdx.Person),
 		SoftwareAgentsByID:                       make(map[string]*spdx.SoftwareAgent),
@@ -317,9 +318,16 @@ func (r *Reader) handleSoftwareElements(doc *Document, elemMap map[string]interf
 		}
 	case TypeSoftwareSnippet:
 		doc.Snippets = append(doc.Snippets, r.parser.ParseSnippet(elemMap))
+	case TypeSoftwareArtifact:
+		sa := r.parser.ParseSoftwareArtifact(elemMap)
+		doc.SoftwareArtifacts = append(doc.SoftwareArtifacts, sa)
+		if sa.SpdxID != "" {
+			doc.SoftwareArtifactsByID[sa.SpdxID] = sa
+		}
 	case TypeSoftwareSbom:
 		sbom := r.parser.ParseSbom(elemMap)
 		doc.Boms = append(doc.Boms, &sbom.Bom)
+		doc.Sboms = append(doc.Sboms, sbom)
 	default:
 		return false
 	}

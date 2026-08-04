@@ -42,8 +42,17 @@ func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Elemen
 		}
 	}
 
-	// Parse externalIdentifier
+	// Parse externalIdentifier (for single values)
 	if ei := p.H.GetSlice(elemMap, "externalIdentifier"); ei != nil {
+		for _, e := range ei {
+			if eMap, ok := e.(map[string]interface{}); ok {
+				elem.ExternalIdentifier = append(elem.ExternalIdentifier, *p.ParseExternalIdentifier(eMap))
+			}
+		}
+	}
+	// Also try plural form (JSON-LD may output "externalIdentifiers")
+	// for multiple values
+	if ei := p.H.GetSlice(elemMap, "externalIdentifiers"); ei != nil {
 		for _, e := range ei {
 			if eMap, ok := e.(map[string]interface{}); ok {
 				elem.ExternalIdentifier = append(elem.ExternalIdentifier, *p.ParseExternalIdentifier(eMap))
@@ -80,7 +89,34 @@ func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Elemen
 		}
 	}
 
+	// Parse externalRef
+	if er := p.H.GetSlice(elemMap, "externalRef"); er != nil {
+		for _, e := range er {
+			if eMap, ok := e.(map[string]interface{}); ok {
+				if extRef := p.ParseExternalRef(eMap); extRef != nil {
+					elem.ExternalRef = append(elem.ExternalRef, *extRef)
+				}
+			}
+		}
+	}
+
 	return elem
+}
+
+// ParseExternalRef parses an external reference from a JSON map.
+func (p *ElementParser) ParseExternalRef(elemMap map[string]interface{}) *spdx.ExternalRef {
+	if elemMap == nil {
+		return nil
+	}
+	er := &spdx.ExternalRef{
+		ContentType: p.H.GetString(elemMap, "contentType"),
+		Comment:     p.H.GetString(elemMap, "comment"),
+		Locator:     p.H.GetStringSlice(elemMap, "locator"),
+	}
+	if ert, ok := elemMap["externalRefType"].(string); ok {
+		er.ExternalRefType = spdx.ExternalRefType(ert)
+	}
+	return er
 }
 
 // ParseCreationInfo parses creation information from a JSON map.
@@ -814,6 +850,14 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 		file.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
+	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+		for _, purpose := range ap {
+			if ps, ok := purpose.(string); ok {
+				file.AdditionalPurpose = append(file.AdditionalPurpose, spdx.SoftwarePurpose(ps))
+			}
+		}
+	}
+
 	if fk, ok := elemMap["software_fileKind"].(string); ok {
 		file.FileKind = spdx.FileKindType(fk)
 	}
@@ -857,6 +901,46 @@ func (p *ElementParser) ParseSnippet(elemMap map[string]interface{}) *spdx.Snipp
 	}
 
 	return snippet
+}
+
+// ParseSoftwareArtifact parses a software artifact from a JSON map.
+// SoftwareArtifact is an abstract type in SPDX 3.0, but some documents
+// may use it directly (e.g., to represent source artifacts with externalRef).
+func (p *ElementParser) ParseSoftwareArtifact(elemMap map[string]interface{}) *spdx.SoftwareArtifact {
+	sa := &spdx.SoftwareArtifact{}
+
+	// Software Artifact fields
+	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
+		sa.PrimaryPurpose = spdx.SoftwarePurpose(pp)
+	}
+
+	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+		for _, purpose := range ap {
+			if ps, ok := purpose.(string); ok {
+				sa.AdditionalPurpose = append(sa.AdditionalPurpose, spdx.SoftwarePurpose(ps))
+			}
+		}
+	}
+
+	sa.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
+	sa.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
+
+	// Artifact
+	sa.Artifact = *p.ParseArtifact(elemMap)
+
+	// Element
+	sa.Element = p.ParseElement(elemMap)
+
+	// Parse ContentIdentifier (from embedded SoftwareArtifact)
+	if cids := p.H.GetSlice(elemMap, "contentIdentifier"); cids != nil {
+		for _, ci := range cids {
+			if ciMap, ok := ci.(map[string]interface{}); ok {
+				sa.ContentIdentifier = append(sa.ContentIdentifier, *p.ParseContentIdentifier(ciMap))
+			}
+		}
+	}
+
+	return sa
 }
 
 // ParseRelationship parses a relationship from a JSON map.
