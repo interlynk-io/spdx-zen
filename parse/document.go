@@ -185,6 +185,19 @@ func (d *Document) GetFileByID(spdxID string) *spdx.File {
 	return nil
 }
 
+// GetSoftwareArtifactByID returns a software artifact by its SPDX ID
+func (d *Document) GetSoftwareArtifactByID(spdxID string) *spdx.SoftwareArtifact {
+	if d.SoftwareArtifactsByID != nil {
+		return d.SoftwareArtifactsByID[spdxID]
+	}
+	for _, sa := range d.SoftwareArtifacts {
+		if sa.SpdxID == spdxID {
+			return sa
+		}
+	}
+	return nil
+}
+
 // GetFileByName returns files matching the given name
 func (d *Document) GetFileByName(name string) []*spdx.File {
 	var result []*spdx.File
