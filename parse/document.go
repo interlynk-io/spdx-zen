@@ -12,6 +12,7 @@ type Document struct {
 	Packages                     []*spdx.Package
 	Files                        []*spdx.File
 	Snippets                     []*spdx.Snippet
+	SoftwareArtifacts            []*spdx.SoftwareArtifact
 	Relationships                []*spdx.Relationship
 	LifecycleScopedRelationships []*spdx.LifecycleScopedRelationship
 	Annotations                  []*spdx.Annotation
@@ -23,6 +24,7 @@ type Document struct {
 	Tools                        []*spdx.Tool
 	Bundles                      []*spdx.Bundle
 	Boms                         []*spdx.Bom
+	Sboms                        []*spdx.Sbom
 	DictionaryEntries            []*spdx.DictionaryEntry
 	Hashes                       []*spdx.Hash
 	PackageVerificationCodes     []*spdx.PackageVerificationCode
@@ -74,6 +76,7 @@ type Document struct {
 	// Element type indexes for O(1) lookups
 	PackagesByID                             map[string]*spdx.Package
 	FilesByID                                map[string]*spdx.File
+	SoftwareArtifactsByID                    map[string]*spdx.SoftwareArtifact
 	OrganizationsByID                        map[string]*spdx.Organization
 	PersonsByID                              map[string]*spdx.Person
 	SoftwareAgentsByID                       map[string]*spdx.SoftwareAgent
