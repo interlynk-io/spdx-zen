@@ -529,6 +529,80 @@ func TestReader_SbomLifecycle(t *testing.T) {
 	})
 }
 
+func TestReader_LicensingElements(t *testing.T) {
+	docJSON := `{
+		"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+		"@graph": [
+			{
+				"type": "SpdxDocument",
+				"spdxId": "SPDXRef-DOCUMENT",
+				"name": "Test SBOM"
+			},
+			{
+				"type": "software_Package",
+				"spdxId": "SPDXRef-Package",
+				"name": "my-package",
+				"software_packageVersion": "1.0.0"
+			},
+			{
+				"type": "simplelicensing_LicenseExpression",
+				"spdxId": "SPDXRef-License-MIT",
+				"licenseExpression": "MIT"
+			},
+			{
+				"type": "Relationship",
+				"spdxId": "SPDXRef-Rel-1",
+				"from": "SPDXRef-Package",
+				"to": ["SPDXRef-License-MIT"],
+				"relationshipType": "hasDeclaredLicense",
+				"completeness": "complete"
+			}
+		]
+	}`
+
+	reader := parse.NewReader()
+	doc, err := reader.Read([]byte(docJSON))
+	if err != nil {
+		t.Fatalf("failed to parse document: %v", err)
+	}
+
+	t.Run("LicenseExpression parsed with simplelicensing_ prefix", func(t *testing.T) {
+		if len(doc.LicenseExpressions) == 0 {
+			t.Fatal("expected LicenseExpressions, got none")
+		}
+		le := doc.LicenseExpressions[0]
+		if le.SpdxID != "SPDXRef-License-MIT" {
+			t.Errorf("spdxId = %q, want %q", le.SpdxID, "SPDXRef-License-MIT")
+		}
+		if le.LicenseExpression != "MIT" {
+			t.Errorf("licenseExpression = %q, want %q", le.LicenseExpression, "MIT")
+		}
+	})
+
+	t.Run("LicenseExpression indexed by ID", func(t *testing.T) {
+		le := doc.LicenseExpressionsByID["SPDXRef-License-MIT"]
+		if le == nil {
+			t.Fatal("expected LicenseExpression by ID, got nil")
+		}
+		if le.LicenseExpression != "MIT" {
+			t.Errorf("licenseExpression = %q, want %q", le.LicenseExpression, "MIT")
+		}
+	})
+
+	t.Run("GetAnyLicenseInfoByID resolves LicenseExpression", func(t *testing.T) {
+		info := doc.GetAnyLicenseInfoByID("SPDXRef-License-MIT")
+		if info == nil {
+			t.Fatal("expected AnyLicenseInfo by ID, got nil")
+		}
+		if info.Name != "MIT" {
+			t.Errorf("name = %q, want %q", info.Name, "MIT")
+		}
+		if info.SpdxID != "SPDXRef-License-MIT" {
+			t.Errorf("spdxId = %q, want %q", info.SpdxID, "SPDXRef-License-MIT")
+		}
+	})
+}
+
 // Helper function
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStringHelper(s, substr))
