@@ -47,16 +47,16 @@ const (
 	TypeListedLicense             ElementType = "ListedLicense"
 	TypeCustomLicense             ElementType = "CustomLicense"
 	TypeLicenseExpression         ElementType = "LicenseExpression"
-	TypeSimpleLicensingExpression ElementType = "simpleLicensing_LicenseExpression"
+	TypeSimpleLicensingExpression ElementType = "simplelicensing_LicenseExpression"
 	TypeConjunctiveLicenseSet     ElementType = "ConjunctiveLicenseSet"
 	TypeDisjunctiveLicenseSet     ElementType = "DisjunctiveLicenseSet"
 	TypeWithAdditionOperator      ElementType = "WithAdditionOperator"
 	TypeLicenseAddition           ElementType = "LicenseAddition"
 	TypeIndividualLicensingInfo   ElementType = "IndividualLicensingInfo"
 	// Newly added licensing element types
-	TypeSimpleLicensingText    ElementType = "simpleLicensing_SimpleLicensingText"
-	TypeOrLaterOperator        ElementType = "expandedLicensing_OrLaterOperator"
-	TypeListedLicenseException ElementType = "expandedLicensing_ListedLicenseException"
+	TypeSimpleLicensingText    ElementType = "simplelicensing_SimpleLicensingText"
+	TypeOrLaterOperator        ElementType = "expandedlicensing_OrLaterOperator"
+	TypeListedLicenseException ElementType = "expandedlicensing_ListedLicenseException"
 )
 
 // Security-related element types.
