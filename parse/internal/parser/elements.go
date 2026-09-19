@@ -19,6 +19,45 @@ func NewElementParser() *ElementParser {
 	}
 }
 
+// ElementReader binds an element type to an element map so that field lookups
+// do not need to repeat the type on every call.
+type ElementReader struct {
+	p        *ElementParser
+	elemMap  map[string]interface{}
+	elemType spdx.ElementType
+}
+
+// getString returns the string value for the given field from the element map,
+// using the reader's bound element type to resolve profile prefixes.
+func (r *ElementReader) getString(field string) string {
+	return r.p.getStringValue(r.elemMap, r.elemType, field)
+}
+
+// getStringSlice returns the string-slice value for the given field.
+func (r *ElementReader) getStringSlice(field string) []string {
+	return r.p.getStringSliceValue(r.elemMap, r.elemType, field)
+}
+
+// getSlice returns the []interface{} value for the given field.
+func (r *ElementReader) getSlice(field string) []interface{} {
+	return r.p.getSliceValue(r.elemMap, r.elemType, field)
+}
+
+// getMap returns the nested map value for the given field.
+func (r *ElementReader) getMap(field string) map[string]interface{} {
+	return r.p.getMapValue(r.elemMap, r.elemType, field)
+}
+
+// getStringOk returns the string value with an "ok" flag (prefixed-first).
+func (r *ElementReader) getStringOk(field string) (string, bool) {
+	return r.p.getStringValueOk(r.elemMap, r.elemType, field)
+}
+
+// readerFor creates a new ElementReader bound to the given element type and map.
+func (p *ElementParser) readerFor(elemType spdx.ElementType, elemMap map[string]interface{}) *ElementReader {
+	return &ElementReader{p: p, elemMap: elemMap, elemType: elemType}
+}
+
 // ParseElement parses common element fields from a JSON map.
 func (p *ElementParser) ParseElement(elemMap map[string]interface{}) spdx.Element {
 	// Get SpdxID - try @id first (JSON-LD), then spdxId
@@ -219,10 +258,11 @@ func (p *ElementParser) parseSupportLevel(elemList []interface{}) []spdx.Support
 // ParseSbom parses an Sbom from a JSON map.
 func (p *ElementParser) ParseSbom(elemMap map[string]interface{}) *spdx.Sbom {
 	sbom := &spdx.Sbom{}
+	r := p.readerFor(spdx.TypeSoftwareSbom, elemMap)
 	// Sbom embeds Bom, so parse embedded Bom fields
 	sbom.Bom = *p.ParseBom(elemMap)
 
-	if sbt := p.H.GetSlice(elemMap, "sbomType"); sbt != nil {
+	if sbt := r.getSlice("sbomType"); sbt != nil {
 		for _, typ := range sbt {
 			if ts, ok := typ.(string); ok {
 				sbom.SbomType = append(sbom.SbomType, spdx.SbomType(ts))
@@ -250,19 +290,27 @@ func (p *ElementParser) ParseContentIdentifier(elemMap map[string]interface{}) *
 func (p *ElementParser) ParseVulnerability(elemMap map[string]interface{}) *spdx.Vulnerability {
 	vuln := &spdx.Vulnerability{}
 	vuln.Artifact = *p.ParseArtifact(elemMap) // Vulnerability embeds Artifact
-	vuln.PublishedTime = p.H.GetTime(elemMap, "publishedTime")
-	vuln.ModifiedTime = p.H.GetTime(elemMap, "modifiedTime")
-	vuln.WithdrawnTime = p.H.GetTime(elemMap, "withdrawnTime")
+	vuln.PublishedTime = p.H.GetTimePrefixed(elemMap, "security_", "publishedTime")
+	vuln.ModifiedTime = p.H.GetTimePrefixed(elemMap, "security_", "modifiedTime")
+	vuln.WithdrawnTime = p.H.GetTimePrefixed(elemMap, "security_", "withdrawnTime")
 	return vuln
 }
 
 // ParseVulnAssessmentRelationship parses a generic vulnerability assessment relationship from a JSON map.
 // This serves as a helper for specific VulnAssessmentRelationship types.
-func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VulnAssessmentRelationship {
+// The prefix parameter is the profile prefix (e.g. "security_") for fields that
+// belong to the Security namespace in JSON-LD.
+func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]interface{}, prefix string) *spdx.VulnAssessmentRelationship {
 	var vulnRel spdx.VulnAssessmentRelationship
 	vulnRel.Relationship = *p.ParseRelationship(elemMap) // VulnAssessmentRelationship embeds Relationship
 
-	if ae, ok := elemMap["assessedElement"].(string); ok {
+	if ae, ok := elemMap[prefix+"assessedElement"].(string); ok {
+		vulnRel.AssessedElement = &spdx.SoftwareArtifact{
+			Artifact: spdx.Artifact{
+				Element: spdx.Element{SpdxID: ae},
+			},
+		}
+	} else if ae, ok := elemMap["assessedElement"].(string); ok {
 		vulnRel.AssessedElement = &spdx.SoftwareArtifact{
 			Artifact: spdx.Artifact{
 				Element: spdx.Element{SpdxID: ae},
@@ -270,10 +318,16 @@ func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]inter
 		}
 	}
 
-	vulnRel.PublishedTime = p.H.GetTime(elemMap, "publishedTime")
+	vulnRel.PublishedTime = p.H.GetTimePrefixed(elemMap, prefix, "publishedTime")
 
-	// Parse suppliedBy if present
-	if sb, ok := elemMap["suppliedBy"]; ok {
+	// Parse suppliedBy if present (tries prefixed first, then bare fallback)
+	if sb, ok := elemMap[prefix+"suppliedBy"]; ok {
+		if sbMap, ok := sb.(map[string]interface{}); ok {
+			vulnRel.SuppliedBy = p.ParseAgent(sbMap)
+		} else if sbStr, ok := sb.(string); ok {
+			vulnRel.SuppliedBy = &spdx.Agent{Element: spdx.Element{SpdxID: sbStr}}
+		}
+	} else if sb, ok := elemMap["suppliedBy"]; ok {
 		if sbMap, ok := sb.(map[string]interface{}); ok {
 			vulnRel.SuppliedBy = p.ParseAgent(sbMap)
 		} else if sbStr, ok := sb.(string); ok {
@@ -281,74 +335,77 @@ func (p *ElementParser) ParseVulnAssessmentRelationship(elemMap map[string]inter
 		}
 	}
 
-	vulnRel.ModifiedTime = p.H.GetTime(elemMap, "modifiedTime")
-	vulnRel.WithdrawnTime = p.H.GetTime(elemMap, "withdrawnTime")
+	vulnRel.ModifiedTime = p.H.GetTimePrefixed(elemMap, prefix, "modifiedTime")
+	vulnRel.WithdrawnTime = p.H.GetTimePrefixed(elemMap, prefix, "withdrawnTime")
 	return &vulnRel
 }
 
 // ParseVexVulnAssessmentRelationship parses a generic VEX vulnerability assessment relationship from a JSON map.
 // This serves as a helper for specific VEX VulnAssessmentRelationship types.
-func (p *ElementParser) ParseVexVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexVulnAssessmentRelationship {
+func (p *ElementParser) ParseVexVulnAssessmentRelationship(elemMap map[string]interface{}, prefix string) *spdx.VexVulnAssessmentRelationship {
 	var vexVulnRel spdx.VexVulnAssessmentRelationship
-	vexVulnRel.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // VexVulnAssessmentRelationship embeds VulnAssessmentRelationship
+	vexVulnRel.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, prefix) // VexVulnAssessmentRelationship embeds VulnAssessmentRelationship
 
-	vexVulnRel.VexVersion = p.H.GetString(elemMap, "vexVersion")
-	vexVulnRel.StatusNotes = p.H.GetString(elemMap, "statusNotes")
+	vexVulnRel.VexVersion = p.H.GetStringPrefixed(elemMap, prefix, "vexVersion")
+	vexVulnRel.StatusNotes = p.H.GetStringPrefixed(elemMap, prefix, "statusNotes")
 	return &vexVulnRel
 }
 
 // ParseCvssV2VulnAssessmentRelationship parses a CVSSv2 vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseCvssV2VulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.CvssV2VulnAssessmentRelationship {
 	cvss2 := &spdx.CvssV2VulnAssessmentRelationship{}
-	cvss2.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+	cvss2.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, "security_") // embeds VulnAssessmentRelationship
 
-	cvss2.Score = p.H.GetFloat(elemMap, "score")
-	cvss2.VectorString = p.H.GetString(elemMap, "vectorString")
+	cvss2.Score = p.H.GetFloatPrefixed(elemMap, "security_", "score")
+	cvss2.VectorString = p.H.GetStringPrefixed(elemMap, "security_", "vectorString")
 	return cvss2
 }
 
 // ParseCvssV3VulnAssessmentRelationship parses a CVSSv3 vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseCvssV3VulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.CvssV3VulnAssessmentRelationship {
 	cvss3 := &spdx.CvssV3VulnAssessmentRelationship{}
-	cvss3.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+	cvss3.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, "security_") // embeds VulnAssessmentRelationship
+	r := p.readerFor(spdx.TypeCvssV3VulnAssessment, elemMap)
 
-	cvss3.Score = p.H.GetFloat(elemMap, "score")
-	if sev, ok := elemMap["severity"].(string); ok {
+	cvss3.Score = p.H.GetFloatPrefixed(elemMap, "security_", "score")
+	if sev, ok := r.getStringOk("severity"); ok {
 		cvss3.Severity = spdx.CvssSeverityType(sev)
 	}
-	cvss3.VectorString = p.H.GetString(elemMap, "vectorString")
+	cvss3.VectorString = p.H.GetStringPrefixed(elemMap, "security_", "vectorString")
 	return cvss3
 }
 
 // ParseCvssV4VulnAssessmentRelationship parses a CVSSv4 vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseCvssV4VulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.CvssV4VulnAssessmentRelationship {
 	cvss4 := &spdx.CvssV4VulnAssessmentRelationship{}
-	cvss4.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+	cvss4.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, "security_") // embeds VulnAssessmentRelationship
+	r := p.readerFor(spdx.TypeCvssV4VulnAssessment, elemMap)
 
-	cvss4.Score = p.H.GetFloat(elemMap, "score")
-	if sev, ok := elemMap["severity"].(string); ok {
+	cvss4.Score = p.H.GetFloatPrefixed(elemMap, "security_", "score")
+	if sev, ok := r.getStringOk("severity"); ok {
 		cvss4.Severity = spdx.CvssSeverityType(sev)
 	}
-	cvss4.VectorString = p.H.GetString(elemMap, "vectorString")
+	cvss4.VectorString = p.H.GetStringPrefixed(elemMap, "security_", "vectorString")
 	return cvss4
 }
 
 // ParseEpssVulnAssessmentRelationship parses an EPSS vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseEpssVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.EpssVulnAssessmentRelationship {
 	epss := &spdx.EpssVulnAssessmentRelationship{}
-	epss.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+	epss.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, "security_") // embeds VulnAssessmentRelationship
 
-	epss.Probability = p.H.GetFloat(elemMap, "probability")
-	epss.Percentile = p.H.GetFloat(elemMap, "percentile")
+	epss.Probability = p.H.GetFloatPrefixed(elemMap, "security_", "probability")
+	epss.Percentile = p.H.GetFloatPrefixed(elemMap, "security_", "percentile")
 	return epss
 }
 
 // ParseSsvcVulnAssessmentRelationship parses an SSVC vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseSsvcVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.SsvcVulnAssessmentRelationship {
 	ssvc := &spdx.SsvcVulnAssessmentRelationship{}
-	ssvc.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+	ssvc.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, "security_") // embeds VulnAssessmentRelationship
+	r := p.readerFor(spdx.TypeSsvcVulnAssessment, elemMap)
 
-	if dt, ok := elemMap["decisionType"].(string); ok {
+	if dt, ok := r.getStringOk("decisionType"); ok {
 		ssvc.DecisionType = spdx.SsvcDecisionType(dt)
 	}
 	return ssvc
@@ -357,50 +414,52 @@ func (p *ElementParser) ParseSsvcVulnAssessmentRelationship(elemMap map[string]i
 // ParseExploitCatalogVulnAssessmentRelationship parses an ExploitCatalog vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseExploitCatalogVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.ExploitCatalogVulnAssessmentRelationship {
 	ec := &spdx.ExploitCatalogVulnAssessmentRelationship{}
-	ec.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap) // embeds VulnAssessmentRelationship
+	ec.VulnAssessmentRelationship = *p.ParseVulnAssessmentRelationship(elemMap, "security_") // embeds VulnAssessmentRelationship
+	r := p.readerFor(spdx.TypeExploitCatalogVulnAssessment, elemMap)
 
-	if ct, ok := elemMap["catalogType"].(string); ok {
+	if ct, ok := r.getStringOk("catalogType"); ok {
 		ec.CatalogType = spdx.ExploitCatalogType(ct)
 	}
-	ec.Exploited = p.H.GetBool(elemMap, "exploited")
-	ec.Locator = p.H.GetString(elemMap, "locator")
+	ec.Exploited = p.H.GetBoolPrefixed(elemMap, "security_", "exploited")
+	ec.Locator = p.H.GetStringPrefixed(elemMap, "security_", "locator")
 	return ec
 }
 
 // ParseVexAffectedVulnAssessmentRelationship parses a VexAffected vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseVexAffectedVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexAffectedVulnAssessmentRelationship {
 	vexAffected := &spdx.VexAffectedVulnAssessmentRelationship{}
-	vexAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+	vexAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap, "security_") // embeds VexVulnAssessmentRelationship
 
-	vexAffected.ActionStatement = p.H.GetString(elemMap, "actionStatement")
-	vexAffected.ActionStatementTime = p.H.GetTime(elemMap, "actionStatementTime")
+	vexAffected.ActionStatement = p.H.GetStringPrefixed(elemMap, "security_", "actionStatement")
+	vexAffected.ActionStatementTime = p.H.GetTimePrefixed(elemMap, "security_", "actionStatementTime")
 	return vexAffected
 }
 
 // ParseVexFixedVulnAssessmentRelationship parses a VexFixed vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseVexFixedVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexFixedVulnAssessmentRelationship {
 	vexFixed := &spdx.VexFixedVulnAssessmentRelationship{}
-	vexFixed.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+	vexFixed.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap, "security_") // embeds VexVulnAssessmentRelationship
 	return vexFixed
 }
 
 // ParseVexNotAffectedVulnAssessmentRelationship parses a VexNotAffected vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseVexNotAffectedVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexNotAffectedVulnAssessmentRelationship {
 	vexNotAffected := &spdx.VexNotAffectedVulnAssessmentRelationship{}
-	vexNotAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+	vexNotAffected.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap, "security_") // embeds VexVulnAssessmentRelationship
+	r := p.readerFor(spdx.TypeVexNotAffectedVulnAssessment, elemMap)
 
-	if jt, ok := elemMap["justificationType"].(string); ok {
+	if jt, ok := r.getStringOk("justificationType"); ok {
 		vexNotAffected.JustificationType = spdx.VexJustificationType(jt)
 	}
-	vexNotAffected.ImpactStatement = p.H.GetString(elemMap, "impactStatement")
-	vexNotAffected.ImpactStatementTime = p.H.GetTime(elemMap, "impactStatementTime")
+	vexNotAffected.ImpactStatement = p.H.GetStringPrefixed(elemMap, "security_", "impactStatement")
+	vexNotAffected.ImpactStatementTime = p.H.GetTimePrefixed(elemMap, "security_", "impactStatementTime")
 	return vexNotAffected
 }
 
 // ParseVexUnderInvestigationVulnAssessmentRelationship parses a VexUnderInvestigation vulnerability assessment relationship from a JSON map.
 func (p *ElementParser) ParseVexUnderInvestigationVulnAssessmentRelationship(elemMap map[string]interface{}) *spdx.VexUnderInvestigationVulnAssessmentRelationship {
 	vexUnderInvestigation := &spdx.VexUnderInvestigationVulnAssessmentRelationship{}
-	vexUnderInvestigation.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap) // embeds VexVulnAssessmentRelationship
+	vexUnderInvestigation.VexVulnAssessmentRelationship = *p.ParseVexVulnAssessmentRelationship(elemMap, "security_") // embeds VexVulnAssessmentRelationship
 	return vexUnderInvestigation
 }
 
@@ -794,19 +853,20 @@ func (p *ElementParser) ParseBom(elemMap map[string]interface{}) *spdx.Bom {
 // ParsePackage parses a software package from a JSON map.
 func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Package {
 	pkg := &spdx.Package{}
+	r := p.readerFor(spdx.TypeSoftwarePackage, elemMap)
 
-	pkg.DownloadLocation = p.H.GetString(elemMap, "software_downloadLocation")
-	pkg.HomePage = p.H.GetString(elemMap, "software_homePage")
-	pkg.PackageUrl = p.H.GetString(elemMap, "software_packageUrl")
-	pkg.PackageVersion = p.H.GetString(elemMap, "software_packageVersion")
-	pkg.SourceInfo = p.H.GetString(elemMap, "software_sourceInfo")
+	pkg.DownloadLocation = r.getString("downloadLocation")
+	pkg.HomePage = r.getString("homePage")
+	pkg.PackageUrl = r.getString("packageUrl")
+	pkg.PackageVersion = r.getString("packageVersion")
+	pkg.SourceInfo = r.getString("sourceInfo")
 
 	// Software Artifact fields
-	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
+	if pp, ok := r.getStringOk("primaryPurpose"); ok {
 		pkg.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
-	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+	if ap := r.getSlice("additionalPurpose"); ap != nil {
 		for _, purpose := range ap {
 			if ps, ok := purpose.(string); ok {
 				pkg.AdditionalPurpose = append(pkg.AdditionalPurpose, spdx.SoftwarePurpose(ps))
@@ -814,8 +874,8 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 		}
 	}
 
-	pkg.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
-	pkg.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
+	pkg.CopyrightText = r.getString("copyrightText")
+	pkg.AttributionText = r.getStringSlice("attributionText")
 
 	// Artifact
 	pkg.Artifact = *p.ParseArtifact(elemMap)
@@ -823,7 +883,7 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 	// Element
 	pkg.Element = p.ParseElement(elemMap)
 
-	// Parse ContentIdentifier (from embedded SoftwareArtifact)
+	// Parse ContentIdentifier (from embedded SoftwareArtifact — Core field, no prefix)
 	if cids := p.H.GetSlice(elemMap, "contentIdentifier"); cids != nil {
 		for _, ci := range cids {
 			if ciMap, ok := ci.(map[string]interface{}); ok {
@@ -837,20 +897,21 @@ func (p *ElementParser) ParsePackage(elemMap map[string]interface{}) *spdx.Packa
 
 // ParseFile parses a software file from a JSON map.
 func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
+	r := p.readerFor(spdx.TypeSoftwareFile, elemMap)
 	file := &spdx.File{
-		ContentType: p.H.GetString(elemMap, "software_contentType"),
+		ContentType: r.getString("contentType"),
 	}
 
 	// Set SoftwareArtifact fields
 	file.Element = p.ParseElement(elemMap)
-	file.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
-	file.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
+	file.CopyrightText = r.getString("copyrightText")
+	file.AttributionText = r.getStringSlice("attributionText")
 
-	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
+	if pp, ok := r.getStringOk("primaryPurpose"); ok {
 		file.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
-	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+	if ap := r.getSlice("additionalPurpose"); ap != nil {
 		for _, purpose := range ap {
 			if ps, ok := purpose.(string); ok {
 				file.AdditionalPurpose = append(file.AdditionalPurpose, spdx.SoftwarePurpose(ps))
@@ -858,11 +919,11 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 		}
 	}
 
-	if fk, ok := elemMap["software_fileKind"].(string); ok {
+	if fk, ok := r.getStringOk("fileKind"); ok {
 		file.FileKind = spdx.FileKindType(fk)
 	}
 
-	// Parse ContentIdentifier (from embedded SoftwareArtifact)
+	// Parse ContentIdentifier (from embedded SoftwareArtifact — Core field, no prefix)
 	if cids := p.H.GetSlice(elemMap, "contentIdentifier"); cids != nil {
 		for _, ci := range cids {
 			if ciMap, ok := ci.(map[string]interface{}); ok {
@@ -877,17 +938,18 @@ func (p *ElementParser) ParseFile(elemMap map[string]interface{}) *spdx.File {
 // ParseSnippet parses a software snippet from a JSON map.
 func (p *ElementParser) ParseSnippet(elemMap map[string]interface{}) *spdx.Snippet {
 	snippet := &spdx.Snippet{}
+	r := p.readerFor(spdx.TypeSoftwareSnippet, elemMap)
 
 	// Set SoftwareArtifact fields
 	snippet.Element = p.ParseElement(elemMap)
-	snippet.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
-	snippet.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
+	snippet.CopyrightText = r.getString("copyrightText")
+	snippet.AttributionText = r.getStringSlice("attributionText")
 
-	if br := p.H.GetMap(elemMap, "software_byteRange"); br != nil {
+	if br := r.getMap("byteRange"); br != nil {
 		snippet.ByteRange = p.ParseRange(br)
 	}
 
-	if lr := p.H.GetMap(elemMap, "software_lineRange"); lr != nil {
+	if lr := r.getMap("lineRange"); lr != nil {
 		snippet.LineRange = p.ParseRange(lr)
 	}
 
@@ -908,13 +970,14 @@ func (p *ElementParser) ParseSnippet(elemMap map[string]interface{}) *spdx.Snipp
 // may use it directly (e.g., to represent source artifacts with externalRef).
 func (p *ElementParser) ParseSoftwareArtifact(elemMap map[string]interface{}) *spdx.SoftwareArtifact {
 	sa := &spdx.SoftwareArtifact{}
+	r := p.readerFor(spdx.TypeSoftwareArtifact, elemMap)
 
 	// Software Artifact fields
-	if pp, ok := elemMap["software_primaryPurpose"].(string); ok {
+	if pp, ok := r.getStringOk("primaryPurpose"); ok {
 		sa.PrimaryPurpose = spdx.SoftwarePurpose(pp)
 	}
 
-	if ap := p.H.GetSlice(elemMap, "software_additionalPurpose"); ap != nil {
+	if ap := r.getSlice("additionalPurpose"); ap != nil {
 		for _, purpose := range ap {
 			if ps, ok := purpose.(string); ok {
 				sa.AdditionalPurpose = append(sa.AdditionalPurpose, spdx.SoftwarePurpose(ps))
@@ -922,8 +985,8 @@ func (p *ElementParser) ParseSoftwareArtifact(elemMap map[string]interface{}) *s
 		}
 	}
 
-	sa.CopyrightText = p.H.GetString(elemMap, "software_copyrightText")
-	sa.AttributionText = p.H.GetStringSlice(elemMap, "software_attributionText")
+	sa.CopyrightText = r.getString("copyrightText")
+	sa.AttributionText = r.getStringSlice("attributionText")
 
 	// Artifact
 	sa.Artifact = *p.ParseArtifact(elemMap)
@@ -1077,13 +1140,13 @@ func (p *ElementParser) ParsePackageVerificationCode(elemMap map[string]interfac
 func (p *ElementParser) ParseAIPackage(elemMap map[string]interface{}) *spdx.AIPackage {
 	aiPkg := &spdx.AIPackage{}
 	aiPkg.Package = *p.ParsePackage(elemMap) // AIPackage embeds Package
+	r := p.readerFor(spdx.TypeAIPackage, elemMap)
 
-	// EnergyConsumption is a single object, not directly a slice of descriptions
-	if ecMap := p.H.GetMap(elemMap, "energyConsumption"); ecMap != nil {
+	if ecMap := p.H.GetMapPrefixed(elemMap, "ai_", "energyConsumption"); ecMap != nil {
 		aiPkg.EnergyConsumption = p.ParseEnergyConsumption(ecMap)
 	}
 
-	if mdpp := p.H.GetSlice(elemMap, "modelDataPreprocessing"); mdpp != nil {
+	if mdpp := p.H.GetSlicePrefixed(elemMap, "ai_", "modelDataPreprocessing"); mdpp != nil {
 		for _, s := range mdpp {
 			if ss, ok := s.(string); ok {
 				aiPkg.ModelDataPreprocessing = append(aiPkg.ModelDataPreprocessing, ss)
@@ -1091,13 +1154,41 @@ func (p *ElementParser) ParseAIPackage(elemMap map[string]interface{}) *spdx.AIP
 		}
 	}
 
-	aiPkg.InformationAboutTraining = p.H.GetString(elemMap, "informationAboutTraining")
+	aiPkg.InformationAboutTraining = p.H.GetStringPrefixed(elemMap, "ai_", "informationAboutTraining")
+	aiPkg.InformationAboutApplication = p.H.GetStringPrefixed(elemMap, "ai_", "informationAboutApplication")
 
-	if sra, ok := elemMap["safetyRiskAssessment"].(string); ok {
+	if sra, ok := r.getStringOk("safetyRiskAssessment"); ok {
 		aiPkg.SafetyRiskAssessment = spdx.SafetyRiskAssessmentType(sra)
 	}
-	// Note: Other fields like AutonomyType, Domain, Hyperparameter, etc. are not explicitly parsed here.
-	// This function only addresses the errors found by `go vet`.
+
+	if at, ok := r.getStringOk("autonomyType"); ok {
+		aiPkg.AutonomyType = spdx.PresenceType(at)
+	}
+
+	if domain := p.H.GetSlicePrefixed(elemMap, "ai_", "domain"); domain != nil {
+		for _, d := range domain {
+			if ds, ok := d.(string); ok {
+				aiPkg.Domain = append(aiPkg.Domain, ds)
+			}
+		}
+	}
+
+	if limitation := p.H.GetStringPrefixed(elemMap, "ai_", "limitation"); limitation != "" {
+		aiPkg.Limitation = limitation
+	}
+
+	if tom := p.H.GetSlicePrefixed(elemMap, "ai_", "typeOfModel"); tom != nil {
+		for _, t := range tom {
+			if ts, ok := t.(string); ok {
+				aiPkg.TypeOfModel = append(aiPkg.TypeOfModel, ts)
+			}
+		}
+	}
+
+	if usp, ok := r.getStringOk("useSensitivePersonalInformation"); ok {
+		aiPkg.UseSensitivePersonalInformation = spdx.PresenceType(usp)
+	}
+
 	return aiPkg
 }
 
@@ -1109,7 +1200,7 @@ func (p *ElementParser) ParseEnergyConsumption(elemMap map[string]interface{}) *
 	ec := &spdx.EnergyConsumption{}
 	// EnergyConsumption does not embed Element
 
-	if inf := p.H.GetSlice(elemMap, "inferenceEnergyConsumption"); inf != nil {
+	if inf := p.H.GetSlicePrefixed(elemMap, "ai_", "inferenceEnergyConsumption"); inf != nil {
 		for _, i := range inf {
 			if iMap, ok := i.(map[string]interface{}); ok {
 				ec.InferenceEnergyConsumption = append(ec.InferenceEnergyConsumption, *p.ParseEnergyConsumptionDescription(iMap))
@@ -1117,7 +1208,7 @@ func (p *ElementParser) ParseEnergyConsumption(elemMap map[string]interface{}) *
 		}
 	}
 
-	if tr := p.H.GetSlice(elemMap, "trainingEnergyConsumption"); tr != nil {
+	if tr := p.H.GetSlicePrefixed(elemMap, "ai_", "trainingEnergyConsumption"); tr != nil {
 		for _, t := range tr {
 			if tMap, ok := t.(map[string]interface{}); ok {
 				ec.TrainingEnergyConsumption = append(ec.TrainingEnergyConsumption, *p.ParseEnergyConsumptionDescription(tMap))
@@ -1125,7 +1216,7 @@ func (p *ElementParser) ParseEnergyConsumption(elemMap map[string]interface{}) *
 		}
 	}
 
-	if ft := p.H.GetSlice(elemMap, "finetuningEnergyConsumption"); ft != nil {
+	if ft := p.H.GetSlicePrefixed(elemMap, "ai_", "finetuningEnergyConsumption"); ft != nil {
 		for _, f := range ft {
 			if fMap, ok := f.(map[string]interface{}); ok {
 				ec.FinetuningEnergyConsumption = append(ec.FinetuningEnergyConsumption, *p.ParseEnergyConsumptionDescription(fMap))
@@ -1141,10 +1232,11 @@ func (p *ElementParser) ParseEnergyConsumptionDescription(elemMap map[string]int
 		return nil
 	}
 	ecd := &spdx.EnergyConsumptionDescription{}
+	r := p.readerFor(spdx.TypeEnergyConsumptionDescription, elemMap)
 	// EnergyConsumptionDescription does not embed Element
 
-	ecd.EnergyQuantity = p.H.GetFloat(elemMap, "energyQuantity")
-	if eu, ok := elemMap["energyUnit"].(string); ok {
+	ecd.EnergyQuantity = p.H.GetFloatPrefixed(elemMap, "ai_", "energyQuantity")
+	if eu, ok := r.getStringOk("energyUnit"); ok {
 		ecd.EnergyUnit = spdx.EnergyUnitType(eu)
 	}
 	return ecd
@@ -1154,8 +1246,9 @@ func (p *ElementParser) ParseEnergyConsumptionDescription(elemMap map[string]int
 func (p *ElementParser) ParseDatasetPackage(elemMap map[string]interface{}) *spdx.DatasetPackage {
 	datasetPkg := &spdx.DatasetPackage{}
 	datasetPkg.Package = *p.ParsePackage(elemMap) // DatasetPackage embeds Package
+	r := p.readerFor(spdx.TypeDataset, elemMap)
 
-	if amu := p.H.GetSlice(elemMap, "anonymizationMethodUsed"); amu != nil {
+	if amu := p.H.GetSlicePrefixed(elemMap, "dataset_", "anonymizationMethodUsed"); amu != nil {
 		for _, s := range amu {
 			if ss, ok := s.(string); ok {
 				datasetPkg.AnonymizationMethodUsed = append(datasetPkg.AnonymizationMethodUsed, ss)
@@ -1163,12 +1256,13 @@ func (p *ElementParser) ParseDatasetPackage(elemMap map[string]interface{}) *spd
 		}
 	}
 
-	if cl, ok := elemMap["confidentialityLevel"].(string); ok {
+	if cl, ok := r.getStringOk("confidentialityLevel"); ok {
 		datasetPkg.ConfidentialityLevel = spdx.ConfidentialityLevelType(cl)
 	}
-	datasetPkg.DataCollectionProcess = p.H.GetString(elemMap, "dataCollectionProcess")
 
-	if dpp := p.H.GetSlice(elemMap, "dataPreprocessing"); dpp != nil {
+	datasetPkg.DataCollectionProcess = p.H.GetStringPrefixed(elemMap, "dataset_", "dataCollectionProcess")
+
+	if dpp := p.H.GetSlicePrefixed(elemMap, "dataset_", "dataPreprocessing"); dpp != nil {
 		for _, s := range dpp {
 			if ss, ok := s.(string); ok {
 				datasetPkg.DataPreprocessing = append(datasetPkg.DataPreprocessing, ss)
@@ -1176,13 +1270,14 @@ func (p *ElementParser) ParseDatasetPackage(elemMap map[string]interface{}) *spd
 		}
 	}
 
-	if da, ok := elemMap["datasetAvailability"].(string); ok {
+	if da, ok := r.getStringOk("datasetAvailability"); ok {
 		datasetPkg.DatasetAvailability = spdx.DatasetAvailabilityType(da)
 	}
-	datasetPkg.DatasetNoise = p.H.GetString(elemMap, "datasetNoise")
-	datasetPkg.DatasetSize = p.H.GetInt(elemMap, "datasetSize")
 
-	if dt := p.H.GetSlice(elemMap, "datasetType"); dt != nil {
+	datasetPkg.DatasetNoise = p.H.GetStringPrefixed(elemMap, "dataset_", "datasetNoise")
+	datasetPkg.DatasetSize = p.H.GetIntPrefixed(elemMap, "dataset_", "datasetSize")
+
+	if dt := p.H.GetSlicePrefixed(elemMap, "dataset_", "datasetType"); dt != nil {
 		for _, t := range dt {
 			if ts, ok := t.(string); ok {
 				datasetPkg.DatasetType = append(datasetPkg.DatasetType, spdx.DatasetType(ts))
@@ -1190,22 +1285,21 @@ func (p *ElementParser) ParseDatasetPackage(elemMap map[string]interface{}) *spd
 		}
 	}
 
-	datasetPkg.DatasetUpdateMechanism = p.H.GetString(elemMap, "datasetUpdateMechanism")
-	// HasSensitivePersonalInformation is PresenceType, not bool
-	if hspi, ok := elemMap["hasSensitivePersonalInformation"].(string); ok {
+	datasetPkg.DatasetUpdateMechanism = p.H.GetStringPrefixed(elemMap, "dataset_", "datasetUpdateMechanism")
+	if hspi, ok := r.getStringOk("hasSensitivePersonalInformation"); ok {
 		datasetPkg.HasSensitivePersonalInformation = spdx.PresenceType(hspi)
 	}
-	datasetPkg.IntendedUse = p.H.GetString(elemMap, "intendedUse")
 
-	if kb := p.H.GetSlice(elemMap, "knownBias"); kb != nil {
+	datasetPkg.IntendedUse = p.H.GetStringPrefixed(elemMap, "dataset_", "intendedUse")
+
+	if kb := p.H.GetSlicePrefixed(elemMap, "dataset_", "knownBias"); kb != nil {
 		for _, s := range kb {
 			if ss, ok := s.(string); ok {
 				datasetPkg.KnownBias = append(datasetPkg.KnownBias, ss)
 			}
 		}
 	}
-	// Sensor is []DictionaryEntry - need to parse this if present
-	if sensors := p.H.GetSlice(elemMap, "sensor"); sensors != nil {
+	if sensors := p.H.GetSlicePrefixed(elemMap, "dataset_", "sensor"); sensors != nil {
 		for _, sensor := range sensors {
 			if sMap, ok := sensor.(map[string]interface{}); ok {
 				datasetPkg.Sensor = append(datasetPkg.Sensor, *p.ParseDictionaryEntry(sMap))
@@ -1220,10 +1314,10 @@ func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
 	build := &spdx.Build{}
 	build.Element = p.ParseElement(elemMap) // Build embeds Element
 
-	build.BuildId = p.H.GetString(elemMap, "buildId")
-	build.BuildType = p.H.GetString(elemMap, "buildType")
+	build.BuildId = p.H.GetStringPrefixed(elemMap, "build_", "buildId")
+	build.BuildType = p.H.GetStringPrefixed(elemMap, "build_", "buildType")
 
-	if cse := p.H.GetSlice(elemMap, "configSourceEntrypoint"); cse != nil {
+	if cse := p.H.GetSlicePrefixed(elemMap, "build_", "configSourceEntrypoint"); cse != nil {
 		for _, s := range cse {
 			if ss, ok := s.(string); ok {
 				build.ConfigSourceEntrypoint = append(build.ConfigSourceEntrypoint, ss)
@@ -1231,7 +1325,7 @@ func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
 		}
 	}
 
-	if csu := p.H.GetSlice(elemMap, "configSourceUri"); csu != nil {
+	if csu := p.H.GetSlicePrefixed(elemMap, "build_", "configSourceUri"); csu != nil {
 		for _, s := range csu {
 			if ss, ok := s.(string); ok {
 				build.ConfigSourceUri = append(build.ConfigSourceUri, ss)
@@ -1239,7 +1333,7 @@ func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
 		}
 	}
 
-	if csd := p.H.GetSlice(elemMap, "configSourceDigest"); csd != nil {
+	if csd := p.H.GetSlicePrefixed(elemMap, "build_", "configSourceDigest"); csd != nil {
 		for _, digest := range csd {
 			if dMap, ok := digest.(map[string]interface{}); ok {
 				build.ConfigSourceDigest = append(build.ConfigSourceDigest, *p.ParseHash(dMap))
@@ -1247,7 +1341,7 @@ func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
 		}
 	}
 
-	if params := p.H.GetSlice(elemMap, "parameter"); params != nil {
+	if params := p.H.GetSlicePrefixed(elemMap, "build_", "parameter"); params != nil {
 		for _, param := range params {
 			if pMap, ok := param.(map[string]interface{}); ok {
 				build.Parameter = append(build.Parameter, *p.ParseDictionaryEntry(pMap))
@@ -1255,10 +1349,10 @@ func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
 		}
 	}
 
-	build.BuildStartTime = p.H.GetTime(elemMap, "buildStartTime")
-	build.BuildEndTime = p.H.GetTime(elemMap, "buildEndTime")
+	build.BuildStartTime = p.H.GetTimePrefixed(elemMap, "build_", "buildStartTime")
+	build.BuildEndTime = p.H.GetTimePrefixed(elemMap, "build_", "buildEndTime")
 
-	if envs := p.H.GetSlice(elemMap, "environment"); envs != nil {
+	if envs := p.H.GetSlicePrefixed(elemMap, "build_", "environment"); envs != nil {
 		for _, env := range envs {
 			if eMap, ok := env.(map[string]interface{}); ok {
 				build.Environment = append(build.Environment, *p.ParseDictionaryEntry(eMap))
@@ -1271,4 +1365,59 @@ func (p *ElementParser) ParseBuild(elemMap map[string]interface{}) *spdx.Build {
 // GetTime is a helper for parsing time strings.
 func (p *ElementParser) GetTime(elemMap map[string]interface{}, key string) time.Time {
 	return p.H.GetTime(elemMap, key)
+}
+
+// ──────────────────────────────────────────────────────────────
+// Registry-aware helpers — look up the JSON-LD prefix from
+// spdx.JSONLDFieldPrefixes so parser and serializer stay in sync.
+// ──────────────────────────────────────────────────────────────
+
+func (p *ElementParser) getPrefix(elemType spdx.ElementType, field string) string {
+	return spdx.GetJSONLDFieldPrefix(elemType, field)
+}
+
+// getStringValue looks up the field's prefix in the shared registry, then tries
+// the prefixed key first and falls back to the bare key.
+func (p *ElementParser) getStringValue(m map[string]interface{}, elemType spdx.ElementType, field string) string {
+	return p.H.GetStringPrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getStringSliceValue(m map[string]interface{}, elemType spdx.ElementType, field string) []string {
+	return p.H.GetStringSlicePrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getSliceValue(m map[string]interface{}, elemType spdx.ElementType, field string) []interface{} {
+	return p.H.GetSlicePrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getMapValue(m map[string]interface{}, elemType spdx.ElementType, field string) map[string]interface{} {
+	return p.H.GetMapPrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getTimeValue(m map[string]interface{}, elemType spdx.ElementType, field string) time.Time {
+	return p.H.GetTimePrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getFloatValue(m map[string]interface{}, elemType spdx.ElementType, field string) float64 {
+	return p.H.GetFloatPrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getBoolValue(m map[string]interface{}, elemType spdx.ElementType, field string) bool {
+	return p.H.GetBoolPrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+func (p *ElementParser) getIntValue(m map[string]interface{}, elemType spdx.ElementType, field string) int {
+	return p.H.GetIntPrefixed(m, p.getPrefix(elemType, field), field)
+}
+
+// getStringValueOk tries the prefixed key first, then falls back to the bare key.
+func (p *ElementParser) getStringValueOk(m map[string]interface{}, elemType spdx.ElementType, field string) (string, bool) {
+	prefix := p.getPrefix(elemType, field)
+	if v, ok := m[prefix+field].(string); ok {
+		return v, true
+	}
+	if v, ok := m[field].(string); ok {
+		return v, true
+	}
+	return "", false
 }
