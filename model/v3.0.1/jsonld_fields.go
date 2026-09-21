@@ -1,14 +1,19 @@
-// SPDX JSON-LD Field Prefix Registry
+// SPDX JSON-LD Field Registry
 //
-// This file is the single source of truth for profile-specific field prefixes
-// in SPDX 3.0 JSON-LD serialization. Both the parse.Reader and the
-// serialize.Writer use this registry so that field names stay consistent across
-// read and write.
+// This file is the single source of truth for SPDX 3.0 JSON-LD field metadata.
+// It connects each profile-specific field to its official SPDX ontology URI,
+// namespace, and JSON-LD prefix. Both the parse.Reader and the serialize.Writer
+// use this registry so that field names stay consistent across read and write.
 //
 // When adding a new profile or field, update this file and both parser and
 // serializer will automatically pick up the change.
 
 package spdx
+
+import (
+	"fmt"
+	"strings"
+)
 
 // ElementType represents the type of an SPDX element in JSON-LD format.
 type ElementType string
@@ -154,158 +159,218 @@ func (t ElementType) IsSecurity() bool {
 	return false
 }
 
-// JSONLDFieldPrefixes maps SPDX JSON-LD element types to their profile-specific
-// field prefixes.
+const spdxBaseURI = "https://spdx.org/rdf/3.0.1/terms/"
+
+// JSONLDFieldInfo holds the complete SPDX ontology metadata for a single
+// profile-specific field. It connects the bare property name (as used in the
+// ontology and Go struct tags) to its JSON-LD prefix, namespace, and full
+// canonical URI.
+type JSONLDFieldInfo struct {
+	BareName  string // e.g. "downloadLocation"
+	Prefix    string // e.g. "software_"
+	Namespace string // e.g. "Software"
+	FullURI   string // e.g. "https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation"
+}
+
+// parseSPDXURI extracts namespace and bareName from an official SPDX
+// ontology URI. The URI must follow the pattern:
+//
+//	https://spdx.org/rdf/3.0.1/terms/{Namespace}/{bareName}
+//
+// e.g. "https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation"
+//      → namespace="Software", bareName="downloadLocation"
+func parseSPDXURI(uri string) (namespace, bareName string) {
+	rest := strings.TrimPrefix(uri, spdxBaseURI)
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) != 2 {
+		return "", ""
+	}
+	return parts[0], parts[1]
+}
+
+// namespaceToPrefix maps SPDX ontology namespace names to their JSON-LD
+// prefix strings. The prefix is always lowercase(namespace)+"_".
+func namespaceToPrefix(ns string) string {
+	return strings.ToLower(ns) + "_"
+}
+
+// mustParseURI creates a JSONLDFieldInfo from an official SPDX ontology URI.
+// All fields (Namespace, BareName, Prefix, FullURI) are derived from the URI.
+//
+// Example:
+//
+//	mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation")
+//
+// returns JSONLDFieldInfo{
+//     BareName:  "downloadLocation",
+//     Namespace: "Software",
+//     Prefix:    "software_",
+//     FullURI:   "https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation",
+// }
+func mustParseURI(uri string) JSONLDFieldInfo {
+	ns, bare := parseSPDXURI(uri)
+	if ns == "" || bare == "" {
+		panic(fmt.Sprintf("invalid SPDX URI: %s", uri))
+	}
+	return JSONLDFieldInfo{
+		BareName:  bare,
+		Namespace: ns,
+		Prefix:    namespaceToPrefix(ns),
+		FullURI:   uri,
+	}
+}
+
+// JSONLDFieldRegistry maps SPDX JSON-LD element types to their profile-specific
+// field metadata.
 //
 // For each element type, the inner map holds bare field names (as they appear
-// in Go struct tags / JSON-LD ontology) and the prefix string that must be
-// applied when serializing to JSON-LD.
+// in Go struct tags / JSON-LD ontology) and their complete JSONLDFieldInfo.
 //
 // Core fields inherited from Element, Artifact, Relationship, etc.
 // (e.g. name, spdxId, summary, creationInfo) are intentionally omitted because
-// they never carry a profile prefix.
+// they never carry a profile prefix and live in the Core namespace.
 //
 // This is the single source of truth used by both the parser and the
 // serializer so that field names stay consistent across read and write.
-var JSONLDFieldPrefixes = map[ElementType]map[string]string{
+var JSONLDFieldRegistry = map[ElementType]map[string]JSONLDFieldInfo{
 	// ---------------------------------------
 	// Software Profile
 	// ---------------------------------------
 	TypeSoftwarePackage: {
-		"downloadLocation":  "software_",
-		"homePage":          "software_",
-		"packageUrl":        "software_",
-		"packageVersion":    "software_",
-		"sourceInfo":        "software_",
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
+		"downloadLocation":  mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation"),
+		"homePage":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/homePage"),
+		"packageUrl":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/packageUrl"),
+		"packageVersion":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/packageVersion"),
+		"sourceInfo":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/sourceInfo"),
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
 	},
 	TypeSoftwareFile: {
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
-		"fileKind":          "software_",
-		"contentType":       "software_",
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
+		"fileKind":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/fileKind"),
+		"contentType":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/contentType"),
 	},
 	TypeSoftwareSnippet: {
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
-		"byteRange":         "software_",
-		"lineRange":         "software_",
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
+		"byteRange":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/byteRange"),
+		"lineRange":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/lineRange"),
 	},
 	TypeSoftwareArtifact: {
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
 	},
 	TypeSoftwareSbom: {
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
-		"sbomType":          "software_",
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
+		"sbomType":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/sbomType"),
 	},
 
 	// ---------------------------------------
 	// Security Profile
 	// ---------------------------------------
 	TypeVulnerability: {
-		"publishedTime": "security_",
-		"modifiedTime":  "security_",
-		"withdrawnTime": "security_",
+		"publishedTime": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":  mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
 	},
 	TypeCvssV2VulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"score":           "security_",
-		"vectorString":    "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"score":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
+		"vectorString":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
 	},
 	TypeCvssV3VulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"score":           "security_",
-		"severity":        "security_",
-		"vectorString":    "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"score":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
+		"severity":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/severity"),
+		"vectorString":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
 	},
 	TypeCvssV4VulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"score":           "security_",
-		"severity":        "security_",
-		"vectorString":    "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"score":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
+		"severity":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/severity"),
+		"vectorString":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
 	},
 	TypeEpssVulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"probability":     "security_",
-		"percentile":      "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"probability":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/probability"),
+		"percentile":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/percentile"),
 	},
 	TypeExploitCatalogVulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"catalogType":     "security_",
-		"exploited":       "security_",
-		"locator":         "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"catalogType":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/catalogType"),
+		"exploited":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/exploited"),
+		"locator":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/locator"),
 	},
 	TypeSsvcVulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"decisionType":    "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"decisionType":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/decisionType"),
 	},
 	TypeVexAffectedVulnAssessment: {
-		"assessedElement":     "security_",
-		"publishedTime":       "security_",
-		"modifiedTime":        "security_",
-		"withdrawnTime":       "security_",
-		"vexVersion":          "security_",
-		"statusNotes":         "security_",
-		"actionStatement":     "security_",
-		"actionStatementTime": "security_",
+		"assessedElement":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
+		"actionStatement":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/actionStatement"),
+		"actionStatementTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/actionStatementTime"),
 	},
 	TypeVexFixedVulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"vexVersion":      "security_",
-		"statusNotes":     "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
 	},
 	TypeVexNotAffectedVulnAssessment: {
-		"assessedElement":     "security_",
-		"publishedTime":       "security_",
-		"modifiedTime":        "security_",
-		"withdrawnTime":       "security_",
-		"vexVersion":          "security_",
-		"statusNotes":         "security_",
-		"justificationType":   "security_",
-		"impactStatement":     "security_",
-		"impactStatementTime": "security_",
+		"assessedElement":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
+		"justificationType":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/justificationType"),
+		"impactStatement":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/impactStatement"),
+		"impactStatementTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/impactStatementTime"),
 	},
 	TypeVexUnderInvestigationVulnAssessment: {
-		"assessedElement": "security_",
-		"publishedTime":   "security_",
-		"modifiedTime":    "security_",
-		"withdrawnTime":   "security_",
-		"vexVersion":      "security_",
-		"statusNotes":     "security_",
+		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
+		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
+		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
 	},
 
 	// ---------------------------------------
@@ -314,31 +379,31 @@ var JSONLDFieldPrefixes = map[ElementType]map[string]string{
 	// AIPackage embeds Package, so Software profile fields are also listed.
 	TypeAIPackage: {
 		// AI-specific fields
-		"autonomyType":                    "ai_",
-		"domain":                          "ai_",
-		"energyConsumption":               "ai_",
-		"hyperparameter":                  "ai_",
-		"informationAboutApplication":     "ai_",
-		"informationAboutTraining":        "ai_",
-		"limitation":                      "ai_",
-		"metric":                          "ai_",
-		"metricDecisionThreshold":         "ai_",
-		"modelDataPreprocessing":          "ai_",
-		"modelExplainability":             "ai_",
-		"safetyRiskAssessment":            "ai_",
-		"standardCompliance":              "ai_",
-		"typeOfModel":                     "ai_",
-		"useSensitivePersonalInformation": "ai_",
+		"autonomyType":                    mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/autonomyType"),
+		"domain":                          mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/domain"),
+		"energyConsumption":               mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/energyConsumption"),
+		"hyperparameter":                  mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/hyperparameter"),
+		"informationAboutApplication":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/informationAboutApplication"),
+		"informationAboutTraining":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/informationAboutTraining"),
+		"limitation":                      mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/limitation"),
+		"metric":                          mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/metric"),
+		"metricDecisionThreshold":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/metricDecisionThreshold"),
+		"modelDataPreprocessing":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/modelDataPreprocessing"),
+		"modelExplainability":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/modelExplainability"),
+		"safetyRiskAssessment":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/safetyRiskAssessment"),
+		"standardCompliance":              mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/standardCompliance"),
+		"typeOfModel":                     mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/typeOfModel"),
+		"useSensitivePersonalInformation": mustParseURI("https://spdx.org/rdf/3.0.1/terms/AI/useSensitivePersonalInformation"),
 		// Software profile fields (inherited from Package → SoftwareArtifact)
-		"downloadLocation":  "software_",
-		"homePage":          "software_",
-		"packageUrl":        "software_",
-		"packageVersion":    "software_",
-		"sourceInfo":        "software_",
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
+		"downloadLocation":  mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation"),
+		"homePage":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/homePage"),
+		"packageUrl":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/packageUrl"),
+		"packageVersion":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/packageVersion"),
+		"sourceInfo":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/sourceInfo"),
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
 	},
 
 	// ---------------------------------------
@@ -347,62 +412,93 @@ var JSONLDFieldPrefixes = map[ElementType]map[string]string{
 	// DatasetPackage embeds Package, so Software profile fields are also listed.
 	TypeDataset: {
 		// Dataset-specific fields
-		"anonymizationMethodUsed":         "dataset_",
-		"confidentialityLevel":            "dataset_",
-		"dataCollectionProcess":           "dataset_",
-		"dataPreprocessing":               "dataset_",
-		"datasetAvailability":             "dataset_",
-		"datasetNoise":                    "dataset_",
-		"datasetSize":                     "dataset_",
-		"datasetType":                     "dataset_",
-		"datasetUpdateMechanism":          "dataset_",
-		"hasSensitivePersonalInformation": "dataset_",
-		"intendedUse":                     "dataset_",
-		"knownBias":                       "dataset_",
-		"sensor":                          "dataset_",
+		"anonymizationMethodUsed":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/anonymizationMethodUsed"),
+		"confidentialityLevel":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/confidentialityLevel"),
+		"dataCollectionProcess":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/dataCollectionProcess"),
+		"dataPreprocessing":               mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/dataPreprocessing"),
+		"datasetAvailability":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/datasetAvailability"),
+		"datasetNoise":                    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/datasetNoise"),
+		"datasetSize":                     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/datasetSize"),
+		"datasetType":                     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/datasetType"),
+		"datasetUpdateMechanism":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/datasetUpdateMechanism"),
+		"hasSensitivePersonalInformation": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/hasSensitivePersonalInformation"),
+		"intendedUse":                     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/intendedUse"),
+		"knownBias":                       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/knownBias"),
+		"sensor":                          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Dataset/sensor"),
 		// Software profile fields (inherited from Package → SoftwareArtifact)
-		"downloadLocation":  "software_",
-		"homePage":          "software_",
-		"packageUrl":        "software_",
-		"packageVersion":    "software_",
-		"sourceInfo":        "software_",
-		"primaryPurpose":    "software_",
-		"additionalPurpose": "software_",
-		"copyrightText":     "software_",
-		"attributionText":   "software_",
+		"downloadLocation":  mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation"),
+		"homePage":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/homePage"),
+		"packageUrl":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/packageUrl"),
+		"packageVersion":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/packageVersion"),
+		"sourceInfo":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/sourceInfo"),
+		"primaryPurpose":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/primaryPurpose"),
+		"additionalPurpose": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/additionalPurpose"),
+		"copyrightText":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/copyrightText"),
+		"attributionText":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/attributionText"),
 	},
 
 	// ---------------------------------------
 	// Build Profile
 	// ---------------------------------------
 	TypeBuild: {
-		"buildType":              "build_",
-		"buildId":                "build_",
-		"configSourceEntrypoint": "build_",
-		"configSourceUri":        "build_",
-		"configSourceDigest":     "build_",
-		"parameter":              "build_",
-		"buildStartTime":         "build_",
-		"buildEndTime":           "build_",
-		"environment":            "build_",
+		"buildType":              mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/buildType"),
+		"buildId":                mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/buildId"),
+		"configSourceEntrypoint": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/configSourceEntrypoint"),
+		"configSourceUri":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/configSourceUri"),
+		"configSourceDigest":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/configSourceDigest"),
+		"parameter":              mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/parameter"),
+		"buildStartTime":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/buildStartTime"),
+		"buildEndTime":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/buildEndTime"),
+		"environment":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/Build/environment"),
 	},
 }
 
-// GetJSONLDFieldPrefix returns the prefix for a given element type and bare
-// field name. If no prefix is registered, it returns an empty string,
-// indicating the field is a Core property and should remain bare.
-func GetJSONLDFieldPrefix(elemType ElementType, field string) string {
-	if fields, ok := JSONLDFieldPrefixes[elemType]; ok {
-		if prefix, ok := fields[field]; ok {
-			return prefix
+// GetJSONLDFieldInfo returns the full metadata for a given element type and
+// bare field name. The second return value is false if no profile-specific
+// field is registered, indicating the field is a Core property.
+func GetJSONLDFieldInfo(elemType ElementType, field string) (JSONLDFieldInfo, bool) {
+	if fields, ok := JSONLDFieldRegistry[elemType]; ok {
+		if info, ok := fields[field]; ok {
+			return info, true
 		}
 	}
+	return JSONLDFieldInfo{}, false
+}
+
+// GetJSONLDFieldPrefix returns the JSON-LD prefix for a given element type
+// and bare field name. If no prefix is registered, it returns an empty
+// string, indicating the field is a Core property and should remain bare.
+func GetJSONLDFieldPrefix(elemType ElementType, field string) string {
+	if info, ok := GetJSONLDFieldInfo(elemType, field); ok {
+		return info.Prefix
+	}
 	return ""
+}
+
+// GetJSONLDFieldNamespace returns the SPDX ontology namespace for a given
+// element type and bare field name. If the field is not registered, it
+// returns "Core".
+func GetJSONLDFieldNamespace(elemType ElementType, field string) string {
+	if info, ok := GetJSONLDFieldInfo(elemType, field); ok {
+		return info.Namespace
+	}
+	return "Core"
+}
+
+// GetJSONLDFieldFullURI returns the official SPDX ontology URI for a given
+// element type and bare field name. Core fields return the Core namespace URI.
+func GetJSONLDFieldFullURI(elemType ElementType, field string) string {
+	if info, ok := GetJSONLDFieldInfo(elemType, field); ok {
+		return info.FullURI
+	}
+	return spdxBaseURI + "Core/" + field
 }
 
 // PrefixedJSONLDKey returns the full JSON-LD key for a field, applying the
 // registered prefix if one exists.
 func PrefixedJSONLDKey(elemType ElementType, field string) string {
-	prefix := GetJSONLDFieldPrefix(elemType, field)
-	return prefix + field
+	if info, ok := GetJSONLDFieldInfo(elemType, field); ok {
+		return info.Prefix + field
+	}
+	return field
 }

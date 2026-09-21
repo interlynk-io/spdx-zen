@@ -1369,7 +1369,7 @@ func (p *ElementParser) GetTime(elemMap map[string]interface{}, key string) time
 
 // ──────────────────────────────────────────────────────────────
 // Registry-aware helpers — look up the JSON-LD prefix from
-// spdx.JSONLDFieldPrefixes so parser and serializer stay in sync.
+// spdx.JSONLDFieldRegistry so parser and serializer stay in sync.
 // ──────────────────────────────────────────────────────────────
 
 func (p *ElementParser) getPrefix(elemType spdx.ElementType, field string) string {
