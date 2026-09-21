@@ -48,11 +48,11 @@ const (
 
 // Software-related element types.
 const (
-	TypeSoftwarePackage       ElementType = "software_Package"
-	TypeSoftwareFile          ElementType = "software_File"
-	TypeSoftwareSnippet       ElementType = "software_Snippet"
-	TypeSoftwareSbom          ElementType = "software_Sbom"
-	TypeSoftwareArtifact      ElementType = "software_SoftwareArtifact"
+	TypeSoftwarePackage  ElementType = "software_Package"
+	TypeSoftwareFile     ElementType = "software_File"
+	TypeSoftwareSnippet  ElementType = "software_Snippet"
+	TypeSoftwareSbom     ElementType = "software_Sbom"
+	TypeSoftwareArtifact ElementType = "software_SoftwareArtifact"
 )
 
 // Licensing-related element types.
@@ -178,7 +178,8 @@ type JSONLDFieldInfo struct {
 //	https://spdx.org/rdf/3.0.1/terms/{Namespace}/{bareName}
 //
 // e.g. "https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation"
-//      → namespace="Software", bareName="downloadLocation"
+//
+//	→ namespace="Software", bareName="downloadLocation"
 func parseSPDXURI(uri string) (namespace, bareName string) {
 	rest := strings.TrimPrefix(uri, spdxBaseURI)
 	parts := strings.SplitN(rest, "/", 2)
@@ -201,12 +202,12 @@ func namespaceToPrefix(ns string) string {
 //
 //	mustParseURI("https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation")
 //
-// returns JSONLDFieldInfo{
-//     BareName:  "downloadLocation",
-//     Namespace: "Software",
-//     Prefix:    "software_",
-//     FullURI:   "https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation",
-// }
+//	returns JSONLDFieldInfo{
+//	    BareName:  "downloadLocation",
+//	    Namespace: "Software",
+//	    Prefix:    "software_",
+//	    FullURI:   "https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation",
+//	}
 func mustParseURI(uri string) JSONLDFieldInfo {
 	ns, bare := parseSPDXURI(uri)
 	if ns == "" || bare == "" {
@@ -288,89 +289,89 @@ var JSONLDFieldRegistry = map[ElementType]map[string]JSONLDFieldInfo{
 	TypeCvssV2VulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"score":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
-		"vectorString":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"score":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
+		"vectorString":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
 	},
 	TypeCvssV3VulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"score":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
-		"severity":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/severity"),
-		"vectorString":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"score":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
+		"severity":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/severity"),
+		"vectorString":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
 	},
 	TypeCvssV4VulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"score":             mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
-		"severity":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/severity"),
-		"vectorString":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"score":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/score"),
+		"severity":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/severity"),
+		"vectorString":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vectorString"),
 	},
 	TypeEpssVulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"probability":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/probability"),
-		"percentile":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/percentile"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"probability":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/probability"),
+		"percentile":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/percentile"),
 	},
 	TypeExploitCatalogVulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"catalogType":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/catalogType"),
-		"exploited":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/exploited"),
-		"locator":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/locator"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"catalogType":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/catalogType"),
+		"exploited":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/exploited"),
+		"locator":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/locator"),
 	},
 	TypeSsvcVulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"decisionType":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/decisionType"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"decisionType":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/decisionType"),
 	},
 	TypeVexAffectedVulnAssessment: {
 		"assessedElement":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"vexVersion":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
-		"statusNotes":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
-		"actionStatement":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/actionStatement"),
-		"actionStatementTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/actionStatementTime"),
+		"modifiedTime":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
+		"actionStatement":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/actionStatement"),
+		"actionStatementTime": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/actionStatementTime"),
 	},
 	TypeVexFixedVulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"vexVersion":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
-		"statusNotes":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
 	},
 	TypeVexNotAffectedVulnAssessment: {
 		"assessedElement":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"vexVersion":            mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
-		"statusNotes":           mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
-		"justificationType":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/justificationType"),
-		"impactStatement":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/impactStatement"),
-		"impactStatementTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/impactStatementTime"),
+		"modifiedTime":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":          mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":         mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
+		"justificationType":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/justificationType"),
+		"impactStatement":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/impactStatement"),
+		"impactStatementTime": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/impactStatementTime"),
 	},
 	TypeVexUnderInvestigationVulnAssessment: {
 		"assessedElement": mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/assessedElement"),
 		"publishedTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/publishedTime"),
-		"modifiedTime":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
-		"withdrawnTime":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
-		"vexVersion":        mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
-		"statusNotes":       mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
+		"modifiedTime":    mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/modifiedTime"),
+		"withdrawnTime":   mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/withdrawnTime"),
+		"vexVersion":      mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/vexVersion"),
+		"statusNotes":     mustParseURI("https://spdx.org/rdf/3.0.1/terms/Security/statusNotes"),
 	},
 
 	// ---------------------------------------
