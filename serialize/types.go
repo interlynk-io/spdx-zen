@@ -29,17 +29,20 @@ import (
 	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
 )
 
-// typeRegistry maps Go struct types to their JSON-LD "type" string.
+// goTypeToJSONLDTypeString maps Go struct types (reflect.Type) to their
+// SPDX JSON-LD "type" string.
 //
 // SPDX 3.0 JSON-LD uses the "type" field to identify the class of each
-// element in @graph. During parsing this field was the routing key; during
-// serialization we must inject it back.
+// element in @graph. Go structs don't carry this string — it is a serialization
+// concern — so we maintain this lookup table.
+//
+// Example: reflect.TypeOf(spdx.Package{}) → "software_Package"
 //
 // Most mappings are 1:1. Notable exceptions:
 //   - LicenseExpression maps to "simplelicensing_LicenseExpression" (the
 //     commonly used JSON-LD type; the bare "LicenseExpression" is also valid)
 //   - DatasetPackage maps to "dataset_Dataset" (Go name differs from RDF class)
-var typeRegistry = map[reflect.Type]string{
+var goTypeToJSONLDTypeString = map[reflect.Type]string{
 	// Core
 	reflect.TypeOf(spdx.Element{}):                     "Element",
 	reflect.TypeOf(spdx.SpdxDocument{}):                "SpdxDocument",
@@ -117,23 +120,33 @@ var typeRegistry = map[reflect.Type]string{
 	reflect.TypeOf(spdx.Build{}): "build_Build",
 }
 
-// GetTypeFor returns the JSON-LD type string for a given value.
-// It accepts both value and pointer types.
-func GetTypeFor(v interface{}) (string, bool) {
+// GetJSONLDTypeString returns the SPDX JSON-LD "type" string for a given Go
+// struct value (e.g. spdx.Package{} → "software_Package").
+//
+// During serialization, every element in @graph needs a "type" field that
+// identifies its SPDX class. Go structs don't carry this type string — it's
+// a JSON-LD serialization concern — so we look it up in a registry that maps
+// reflect.Type → JSON-LD type string.
+//
+// The function accepts both value and pointer types.
+func GetJSONLDTypeString(v interface{}) (string, bool) {
 	if v == nil {
 		return "", false
 	}
 	t := reflect.TypeOf(v)
-	// Dereference pointer types
+	// Dereference pointer types so *Package and Package both resolve
+	// to the same registry entry.
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	typ, ok := typeRegistry[t]
-	return typ, ok
+
+	jsonLDType, ok := goTypeToJSONLDTypeString[t]
+	return jsonLDType, ok
 }
 
-// IsRegistered returns true if the given value's type is in the registry.
+// IsRegistered returns true if the given Go value's type has a corresponding
+// SPDX JSON-LD type string in the registry.
 func IsRegistered(v interface{}) bool {
-	_, ok := GetTypeFor(v)
+	_, ok := GetJSONLDTypeString(v)
 	return ok
 }

@@ -20,7 +20,7 @@ import (
 	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
 )
 
-func TestGetTypeFor(t *testing.T) {
+func TestGetJSONLDTypeString(t *testing.T) {
 	tests := []struct {
 		name     string
 		value    interface{}
@@ -41,12 +41,12 @@ func TestGetTypeFor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotType, gotOk := GetTypeFor(tt.value)
+			gotType, gotOk := GetJSONLDTypeString(tt.value)
 			if gotOk != tt.wantOk {
-				t.Errorf("GetTypeFor(%v) ok = %v, want %v", tt.value, gotOk, tt.wantOk)
+				t.Errorf("GetJSONLDTypeString(%v) ok = %v, want %v", tt.value, gotOk, tt.wantOk)
 			}
 			if gotOk && gotType != tt.wantType {
-				t.Errorf("GetTypeFor(%v) type = %q, want %q", tt.value, gotType, tt.wantType)
+				t.Errorf("GetJSONLDTypeString(%v) type = %q, want %q", tt.value, gotType, tt.wantType)
 			}
 		})
 	}
@@ -120,7 +120,7 @@ func TestRegistryCompleteness(t *testing.T) {
 
 	for _, typ := range requiredTypes {
 		if !IsRegistered(typ) {
-			t.Errorf("type %T is not registered in typeRegistry", typ)
+			t.Errorf("type %T is not registered in goTypeToJSONLDTypeString", typ)
 		}
 	}
 }
