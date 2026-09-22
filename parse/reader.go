@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 
 	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
 	"github.com/interlynk-io/spdx-zen/parse/internal/jsonld"
@@ -110,6 +111,7 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 
 	doc := &Document{
 		ElementsByID:                             make(map[string]interface{}),
+		CreationInfoByBlankNodeID:                make(map[string]*spdx.CreationInfo),
 		RelationshipsFromIndex:                   make(map[string][]*spdx.Relationship),
 		RelationshipsToIndex:                     make(map[string][]*spdx.Relationship),
 		PackagesByID:                             make(map[string]*spdx.Package),
@@ -176,6 +178,34 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 
 		// Parse and categorize by type
 		r.categorizeElement(doc, elemMap, elemType)
+	}
+
+	// Second pass: resolve CreationInfo string references.
+	// SPDX 3.0 JSON-LD commonly uses blank node references like
+	// "creationInfo": "_:creationinfo" instead of inline objects.
+	// The parser's ParseElement only handles inline maps, so elements
+	// with string references get zero-value CreationInfo structs.
+	// Here we look up the blank node ID, find the parsed CreationInfo,
+	// and populate it on the corresponding element.
+	if len(doc.CreationInfoByBlankNodeID) > 0 {
+		for _, elem := range graph {
+			elemMap, ok := elem.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			spdxID, ok := elemMap["spdxId"].(string)
+			if !ok || spdxID == "" {
+				continue
+			}
+			ciRef, ok := elemMap["creationInfo"].(string)
+			if !ok || ciRef == "" {
+				continue
+			}
+			ci := doc.CreationInfoByBlankNodeID[ciRef]
+			if ci != nil {
+				populateElementCreationInfo(doc, spdxID, ci)
+			}
+		}
 	}
 
 	// Build relationship indexes for O(1) lookups
@@ -256,7 +286,12 @@ func (r *Reader) handleCoreElements(doc *Document, elemMap map[string]interface{
 	case spdx.TypeExternalMap:
 		doc.ExternalMaps = append(doc.ExternalMaps, r.parser.ParseExternalMap(elemMap))
 	case spdx.TypeCreationInfo:
-		doc.CreationInfo = r.parser.ParseCreationInfo(elemMap)
+		ci := r.parser.ParseCreationInfo(elemMap)
+		doc.CreationInfo = ci
+		// Store by blank node ID for multi-CreationInfo resolution
+		if blankID, ok := elemMap["@id"].(string); ok && blankID != "" {
+			doc.CreationInfoByBlankNodeID[blankID] = ci
+		}
 	case spdx.TypeOrganization:
 		org := r.parser.ParseOrganization(elemMap)
 		doc.Organizations = append(doc.Organizations, org)
@@ -593,4 +628,128 @@ func (r *Reader) Compact(data []byte, context interface{}) (interface{}, error) 
 	}
 
 	return compacted, nil
+}
+
+// populateElementCreationInfo finds the parsed element with the given spdxID
+// in the Document's typed maps and slices and sets its CreationInfo field.
+func populateElementCreationInfo(doc *Document, spdxID string, ci *spdx.CreationInfo) {
+	// Handle SpdxDocument specially (not in a map or slice)
+	if doc.SpdxDocument != nil && doc.SpdxDocument.SpdxID == spdxID {
+		setCreationInfoOnStruct(doc.SpdxDocument, ci)
+		return
+	}
+
+	docVal := reflect.ValueOf(doc).Elem()
+	docType := docVal.Type()
+
+	// First, search through typed maps (map[string]*T)
+	for i := 0; i < docVal.NumField(); i++ {
+		field := docVal.Field(i)
+		fieldType := docType.Field(i)
+
+		if field.Kind() != reflect.Map {
+			continue
+		}
+		if fieldType.Type.Key().Kind() != reflect.String {
+			continue
+		}
+		valType := fieldType.Type.Elem()
+		if valType.Kind() != reflect.Ptr || valType.Elem().Kind() != reflect.Struct {
+			continue
+		}
+
+		elemVal := field.MapIndex(reflect.ValueOf(spdxID))
+		if !elemVal.IsValid() || elemVal.IsNil() {
+			continue
+		}
+
+		setCreationInfoOnStruct(elemVal.Interface(), ci)
+		return
+	}
+
+	// Second, search through typed slices ([]*T)
+	for i := 0; i < docVal.NumField(); i++ {
+		field := docVal.Field(i)
+		fieldType := docType.Field(i)
+
+		if field.Kind() != reflect.Slice {
+			continue
+		}
+		valType := fieldType.Type.Elem()
+		if valType.Kind() != reflect.Ptr || valType.Elem().Kind() != reflect.Struct {
+			continue
+		}
+
+		for j := 0; j < field.Len(); j++ {
+			elemVal := field.Index(j)
+			if elemVal.IsNil() {
+				continue
+			}
+			if hasSpdxID(elemVal.Interface(), spdxID) {
+				setCreationInfoOnStruct(elemVal.Interface(), ci)
+				return
+			}
+		}
+	}
+}
+
+// hasSpdxID returns true if the given struct (or its embedded structs)
+// has a SpdxID field matching the given value.
+func hasSpdxID(v interface{}, spdxID string) bool {
+	if v == nil {
+		return false
+	}
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return false
+	}
+
+	if f := val.FieldByName("SpdxID"); f.IsValid() {
+		if s, ok := f.Interface().(string); ok {
+			return s == spdxID
+		}
+	}
+	return false
+}
+
+// setCreationInfoOnStruct sets the CreationInfo field on a struct value.
+// It handles embedded anonymous structs (e.g. Package → SoftwareArtifact → Artifact → Element).
+func setCreationInfoOnStruct(v interface{}, ci *spdx.CreationInfo) {
+	if v == nil || ci == nil {
+		return
+	}
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return
+	}
+	findAndSetCreationInfo(val, ci)
+}
+
+// findAndSetCreationInfo recursively searches for a "CreationInfo" field
+// in a struct and its embedded anonymous fields.
+func findAndSetCreationInfo(v reflect.Value, ci *spdx.CreationInfo) {
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	// Try direct field first
+	if f := v.FieldByName("CreationInfo"); f.IsValid() && f.CanSet() {
+		f.Set(reflect.ValueOf(*ci))
+		return
+	}
+
+	// Recurse into embedded anonymous fields
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		if field.Anonymous {
+			findAndSetCreationInfo(v.Field(i), ci)
+		}
+	}
 }

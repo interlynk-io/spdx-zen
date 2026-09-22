@@ -85,9 +85,7 @@ func (w *Writer) Write(doc *parse.Document, out io.Writer) error {
 	elements := flattenAndDeduplicateDocumentElements(doc)
 
 	// Step 2: Deduplicate CreationInfo values into shared blank nodes.
-	// If the parser stored CreationInfo at the document level but individual
-	// elements have zero-value CreationInfo, use doc.CreationInfo as fallback.
-	ciMap, ciElements, err := deduplicateCreationInfo(elements, doc.CreationInfo)
+	ciMap, ciElements, err := deduplicateCreationInfo(elements)
 	if err != nil {
 		return fmt.Errorf("deduplicating creationInfo: %w", err)
 	}
@@ -96,7 +94,7 @@ func (w *Writer) Write(doc *parse.Document, out io.Writer) error {
 	graph := make([]map[string]interface{}, 0, len(elements)+len(ciElements))
 
 	for _, elem := range elements {
-		jsonLDMap, err := marshalSPDXElementToJSONLDMap(elem, ciMap, doc.CreationInfo)
+		jsonLDMap, err := marshalSPDXElementToJSONLDMap(elem, ciMap)
 		if err != nil {
 			return fmt.Errorf("serializing %T: %w", elem, err)
 		}
@@ -370,35 +368,15 @@ func makeCreationInfoKey(ci *spdx.CreationInfo) creationInfoKey {
 	}
 }
 
-// isZeroCreationInfo reports whether a CreationInfo has no meaningful data
-// (all fields at their zero values). This happens when the parser resolves
-// creationInfo as a string reference (e.g. "_:creationinfo") but does not
-// populate the embedded CreationInfo struct on individual elements.
-func isZeroCreationInfo(ci *spdx.CreationInfo) bool {
-	if ci == nil {
-		return true
-	}
-	return ci.SpecVersion == "" &&
-		ci.Comment == "" &&
-		ci.Created.IsZero() &&
-		len(ci.CreatedBy) == 0 &&
-		len(ci.CreatedUsing) == 0
-}
-
 // deduplicateCreationInfo walks all elements and extracts their CreationInfo.
 // Identical CreationInfo values are grouped and assigned a shared blank node ID.
-// If fallbackCI is provided and an element's CreationInfo is zero-value, the
-// fallback is used instead. This handles the common case where the parser
-// stores CreationInfo at the document level but does not populate it on each
-// individual element.
-func deduplicateCreationInfo(elements []interface{}, fallbackCI *spdx.CreationInfo) (map[creationInfoKey]string, []map[string]interface{}, error) {
+// The returned map maps each key to its blank node ID, and the slice contains
+// the CreationInfo elements ready for the @graph.
+func deduplicateCreationInfo(elements []interface{}) (map[creationInfoKey]string, []map[string]interface{}, error) {
 	// Group elements by their CreationInfo key.
 	groups := make(map[creationInfoKey][]interface{})
 	for _, elem := range elements {
 		ci := extractCreationInfo(elem)
-		if isZeroCreationInfo(ci) && fallbackCI != nil {
-			ci = fallbackCI
-		}
 		if ci == nil {
 			continue
 		}
@@ -436,9 +414,6 @@ func deduplicateCreationInfo(elements []interface{}, fallbackCI *spdx.CreationIn
 		// Use the first element's CreationInfo as the representative.
 		repElem := groups[key][0]
 		ci := extractCreationInfo(repElem)
-		if isZeroCreationInfo(ci) && fallbackCI != nil {
-			ci = fallbackCI
-		}
 		if ci == nil {
 			continue
 		}
@@ -546,7 +521,7 @@ func applyJSONLDFieldPrefixesUsingRegistry(fields map[string]interface{}, elemTy
 //  6. removeZeroValueTimes — strips Go zero-value time strings ("0001-01-01T00:00:00Z")
 //
 // The result is one entry in the JSON-LD @graph array.
-func marshalSPDXElementToJSONLDMap(elem interface{}, ciMap map[creationInfoKey]string, fallbackCI *spdx.CreationInfo) (map[string]interface{}, error) {
+func marshalSPDXElementToJSONLDMap(elem interface{}, ciMap map[creationInfoKey]string) (map[string]interface{}, error) {
 	elementFields, err := marshalStructToBareFieldMap(elem)
 	if err != nil {
 		return nil, err
@@ -564,9 +539,6 @@ func marshalSPDXElementToJSONLDMap(elem interface{}, ciMap map[creationInfoKey]s
 	// Replace CreationInfo with blank node reference.
 	if ciMap != nil {
 		ci := extractCreationInfo(elem)
-		if isZeroCreationInfo(ci) && fallbackCI != nil {
-			ci = fallbackCI
-		}
 		if ci != nil {
 			key := makeCreationInfoKey(ci)
 			if ref, ok := ciMap[key]; ok {

@@ -69,6 +69,10 @@ type Document struct {
 	// All elements indexed by SPDX ID
 	ElementsByID map[string]interface{}
 
+	// CreationInfo elements indexed by blank node ID (e.g. "_:creationinfo")
+	// This supports documents with multiple distinct CreationInfo values.
+	CreationInfoByBlankNodeID map[string]*spdx.CreationInfo
+
 	// Relationship indexes for O(1) lookups
 	RelationshipsFromIndex map[string][]*spdx.Relationship
 	RelationshipsToIndex   map[string][]*spdx.Relationship
