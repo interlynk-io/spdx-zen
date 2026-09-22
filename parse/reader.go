@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 
 	spdx "github.com/interlynk-io/spdx-zen/model/v3.0.1"
 	"github.com/interlynk-io/spdx-zen/parse/internal/jsonld"
@@ -110,6 +111,7 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 
 	doc := &Document{
 		ElementsByID:                             make(map[string]interface{}),
+		CreationInfoByBlankNodeID:                make(map[string]*spdx.CreationInfo),
 		RelationshipsFromIndex:                   make(map[string][]*spdx.Relationship),
 		RelationshipsToIndex:                     make(map[string][]*spdx.Relationship),
 		PackagesByID:                             make(map[string]*spdx.Package),
@@ -178,6 +180,34 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 		r.categorizeElement(doc, elemMap, elemType)
 	}
 
+	// Second pass: resolve CreationInfo string references.
+	// SPDX 3.0 JSON-LD commonly uses blank node references like
+	// "creationInfo": "_:creationinfo" instead of inline objects.
+	// The parser's ParseElement only handles inline maps, so elements
+	// with string references get zero-value CreationInfo structs.
+	// Here we look up the blank node ID, find the parsed CreationInfo,
+	// and populate it on the corresponding element.
+	if len(doc.CreationInfoByBlankNodeID) > 0 {
+		for _, elem := range graph {
+			elemMap, ok := elem.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			spdxID, ok := elemMap["spdxId"].(string)
+			if !ok || spdxID == "" {
+				continue
+			}
+			ciRef, ok := elemMap["creationInfo"].(string)
+			if !ok || ciRef == "" {
+				continue
+			}
+			ci := doc.CreationInfoByBlankNodeID[ciRef]
+			if ci != nil {
+				populateElementCreationInfo(doc, spdxID, ci)
+			}
+		}
+	}
+
 	// Build relationship indexes for O(1) lookups
 	for _, rel := range doc.Relationships {
 		fromID := rel.From.GetSpdxID()
@@ -210,15 +240,15 @@ func (r *Reader) parseContext(ctx interface{}) []string {
 }
 
 // getElementType extracts the element type from a map.
-func (r *Reader) getElementType(elemMap map[string]interface{}) ElementType {
+func (r *Reader) getElementType(elemMap map[string]interface{}) spdx.ElementType {
 	if typeVal, ok := elemMap["type"].(string); ok {
-		return ElementType(typeVal)
+		return spdx.ElementType(typeVal)
 	}
 	return ""
 }
 
 // categorizeElement parses and categorizes an element based on its type.
-func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}, elemType ElementType) {
+func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) {
 	if r.handleCoreElements(doc, elemMap, elemType) {
 		return
 	}
@@ -243,57 +273,62 @@ func (r *Reader) categorizeElement(doc *Document, elemMap map[string]interface{}
 	}
 }
 
-func (r *Reader) handleCoreElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleCoreElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	switch elemType {
-	case TypeSpdxDocument:
+	case spdx.TypeSpdxDocument:
 		doc.SpdxDocument = r.parser.ParseSpdxDocument(elemMap)
-	case TypeRelationship:
+	case spdx.TypeRelationship:
 		doc.Relationships = append(doc.Relationships, r.parser.ParseRelationship(elemMap))
-	case TypeLifecycleScopedRelationship:
+	case spdx.TypeLifecycleScopedRelationship:
 		doc.LifecycleScopedRelationships = append(doc.LifecycleScopedRelationships, r.parser.ParseLifecycleScopedRelationship(elemMap))
-	case TypeAnnotation:
+	case spdx.TypeAnnotation:
 		doc.Annotations = append(doc.Annotations, r.parser.ParseAnnotation(elemMap))
-	case TypeExternalMap:
+	case spdx.TypeExternalMap:
 		doc.ExternalMaps = append(doc.ExternalMaps, r.parser.ParseExternalMap(elemMap))
-	case TypeCreationInfo:
-		doc.CreationInfo = r.parser.ParseCreationInfo(elemMap)
-	case TypeOrganization:
+	case spdx.TypeCreationInfo:
+		ci := r.parser.ParseCreationInfo(elemMap)
+		doc.CreationInfo = ci
+		// Store by blank node ID for multi-CreationInfo resolution
+		if blankID, ok := elemMap["@id"].(string); ok && blankID != "" {
+			doc.CreationInfoByBlankNodeID[blankID] = ci
+		}
+	case spdx.TypeOrganization:
 		org := r.parser.ParseOrganization(elemMap)
 		doc.Organizations = append(doc.Organizations, org)
 		if org.SpdxID != "" {
 			doc.OrganizationsByID[org.SpdxID] = org
 		}
-	case TypePerson:
+	case spdx.TypePerson:
 		person := r.parser.ParsePerson(elemMap)
 		doc.Persons = append(doc.Persons, person)
 		if person.SpdxID != "" {
 			doc.PersonsByID[person.SpdxID] = person
 		}
-	case TypeSoftwareAgent:
+	case spdx.TypeSoftwareAgent:
 		sa := r.parser.ParseSoftwareAgent(elemMap)
 		doc.SoftwareAgents = append(doc.SoftwareAgents, sa)
 		if sa.SpdxID != "" {
 			doc.SoftwareAgentsByID[sa.SpdxID] = sa
 		}
-	case TypeTool:
+	case spdx.TypeTool:
 		tool := r.parser.ParseTool(elemMap)
 		doc.Tools = append(doc.Tools, tool)
 		if tool.SpdxID != "" {
 			doc.ToolsByID[tool.SpdxID] = tool
 		}
-	case TypeBom:
+	case spdx.TypeBom:
 		bom := r.parser.ParseBom(elemMap)
 		doc.Boms = append(doc.Boms, bom)
-	case TypeBundle:
+	case spdx.TypeBundle:
 		bundle := r.parser.ParseBundle(elemMap)
 		doc.Bundles = append(doc.Bundles, bundle)
-	case TypeDictionaryEntry:
+	case spdx.TypeDictionaryEntry:
 		de := r.parser.ParseDictionaryEntry(elemMap)
 		doc.DictionaryEntries = append(doc.DictionaryEntries, de)
-	case TypeHash:
+	case spdx.TypeHash:
 		hash := r.parser.ParseHash(elemMap)
 		doc.Hashes = append(doc.Hashes, hash)
-	case TypePackageVerificationCode:
+	case spdx.TypePackageVerificationCode:
 		pvc := r.parser.ParsePackageVerificationCode(elemMap)
 		doc.PackageVerificationCodes = append(doc.PackageVerificationCodes, pvc)
 	default:
@@ -302,29 +337,29 @@ func (r *Reader) handleCoreElements(doc *Document, elemMap map[string]interface{
 	return true
 }
 
-func (r *Reader) handleSoftwareElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleSoftwareElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	switch elemType {
-	case TypeSoftwarePackage:
+	case spdx.TypeSoftwarePackage:
 		pkg := r.parser.ParsePackage(elemMap)
 		doc.Packages = append(doc.Packages, pkg)
 		if pkg.SpdxID != "" {
 			doc.PackagesByID[pkg.SpdxID] = pkg
 		}
-	case TypeSoftwareFile:
+	case spdx.TypeSoftwareFile:
 		file := r.parser.ParseFile(elemMap)
 		doc.Files = append(doc.Files, file)
 		if file.SpdxID != "" {
 			doc.FilesByID[file.SpdxID] = file
 		}
-	case TypeSoftwareSnippet:
+	case spdx.TypeSoftwareSnippet:
 		doc.Snippets = append(doc.Snippets, r.parser.ParseSnippet(elemMap))
-	case TypeSoftwareArtifact:
+	case spdx.TypeSoftwareArtifact:
 		sa := r.parser.ParseSoftwareArtifact(elemMap)
 		doc.SoftwareArtifacts = append(doc.SoftwareArtifacts, sa)
 		if sa.SpdxID != "" {
 			doc.SoftwareArtifactsByID[sa.SpdxID] = sa
 		}
-	case TypeSoftwareSbom:
+	case spdx.TypeSoftwareSbom:
 		sbom := r.parser.ParseSbom(elemMap)
 		doc.Boms = append(doc.Boms, &sbom.Bom)
 		doc.Sboms = append(doc.Sboms, sbom)
@@ -334,77 +369,77 @@ func (r *Reader) handleSoftwareElements(doc *Document, elemMap map[string]interf
 	return true
 }
 
-func (r *Reader) handleLicensingElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleLicensingElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	spdxID := r.parser.H.GetString(elemMap, "spdxId")
 
 	switch elemType {
-	case TypeAnyLicenseInfo:
+	case spdx.TypeAnyLicenseInfo:
 		lic := r.parser.ParseAnyLicenseInfo(elemMap)
 		doc.AnyLicenseInfos = append(doc.AnyLicenseInfos, lic)
 		if spdxID != "" {
 			doc.AnyLicenseInfosByID[spdxID] = lic
 		}
-	case TypeConjunctiveLicenseSet:
+	case spdx.TypeConjunctiveLicenseSet:
 		cls := r.parser.ParseConjunctiveLicenseSet(elemMap)
 		doc.ConjunctiveLicenseSets = append(doc.ConjunctiveLicenseSets, cls)
 		if spdxID != "" {
 			doc.ConjunctiveLicenseSetsByID[spdxID] = cls
 		}
-	case TypeCustomLicense:
+	case spdx.TypeCustomLicense:
 		cl := r.parser.ParseCustomLicense(elemMap)
 		doc.CustomLicenses = append(doc.CustomLicenses, cl)
 		if spdxID != "" {
 			doc.CustomLicensesByID[spdxID] = cl
 		}
-	case TypeLicenseAddition:
+	case spdx.TypeLicenseAddition:
 		cla := r.parser.ParseCustomLicenseAddition(elemMap)
 		doc.CustomLicenseAdditions = append(doc.CustomLicenseAdditions, cla)
 		if spdxID != "" {
 			doc.CustomLicenseAdditionsByID[spdxID] = cla
 		}
-	case TypeDisjunctiveLicenseSet:
+	case spdx.TypeDisjunctiveLicenseSet:
 		dls := r.parser.ParseDisjunctiveLicenseSet(elemMap)
 		doc.DisjunctiveLicenseSets = append(doc.DisjunctiveLicenseSets, dls)
 		if spdxID != "" {
 			doc.DisjunctiveLicenseSetsByID[spdxID] = dls
 		}
-	case TypeIndividualLicensingInfo: // Moved from handleCoreElements
+	case spdx.TypeIndividualLicensingInfo: // Moved from handleCoreElements
 		ili := r.parser.ParseIndividualLicensingInfo(elemMap)
 		doc.IndividualLicensingInfos = append(doc.IndividualLicensingInfos, ili)
 		if spdxID != "" {
 			doc.IndividualLicensingInfosByID[spdxID] = ili
 		}
-	case TypeListedLicense:
+	case spdx.TypeListedLicense:
 		ll := r.parser.ParseListedLicense(elemMap)
 		doc.ListedLicenses = append(doc.ListedLicenses, ll)
 		if spdxID != "" {
 			doc.ListedLicensesByID[spdxID] = ll
 		}
-	case TypeListedLicenseException:
+	case spdx.TypeListedLicenseException:
 		lle := r.parser.ParseListedLicenseException(elemMap)
 		doc.ListedLicenseExceptions = append(doc.ListedLicenseExceptions, lle)
 		if spdxID != "" {
 			doc.ListedLicenseExceptionsByID[spdxID] = lle
 		}
-	case TypeLicenseExpression, TypeSimpleLicensingExpression:
+	case spdx.TypeLicenseExpression, spdx.TypeSimpleLicensingExpression:
 		le := r.parser.ParseLicenseExpression(elemMap)
 		doc.LicenseExpressions = append(doc.LicenseExpressions, le)
 		if spdxID != "" {
 			doc.LicenseExpressionsByID[spdxID] = le
 		}
-	case TypeOrLaterOperator:
+	case spdx.TypeOrLaterOperator:
 		olo := r.parser.ParseOrLaterOperator(elemMap)
 		doc.OrLaterOperators = append(doc.OrLaterOperators, olo)
 		if spdxID != "" {
 			doc.OrLaterOperatorsByID[spdxID] = olo
 		}
-	case TypeSimpleLicensingText:
+	case spdx.TypeSimpleLicensingText:
 		slt := r.parser.ParseSimpleLicensingText(elemMap)
 		doc.SimpleLicensingTexts = append(doc.SimpleLicensingTexts, slt)
 		if spdxID != "" {
 			doc.SimpleLicensingTextsByID[spdxID] = slt
 		}
-	case TypeWithAdditionOperator:
+	case spdx.TypeWithAdditionOperator:
 		wao := r.parser.ParseWithAdditionOperator(elemMap)
 		doc.WithAdditionOperators = append(doc.WithAdditionOperators, wao)
 		if spdxID != "" {
@@ -416,69 +451,69 @@ func (r *Reader) handleLicensingElements(doc *Document, elemMap map[string]inter
 	return true
 }
 
-func (r *Reader) handleSecurityElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleSecurityElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	switch elemType {
-	case TypeVulnerability:
+	case spdx.TypeVulnerability:
 		vuln := r.parser.ParseVulnerability(elemMap)
 		doc.Vulnerabilities = append(doc.Vulnerabilities, vuln)
 		if vuln.SpdxID != "" {
 			doc.VulnerabilitiesByID[vuln.SpdxID] = vuln
 		}
-	case TypeCvssV2VulnAssessment:
+	case spdx.TypeCvssV2VulnAssessment:
 		cvss2 := r.parser.ParseCvssV2VulnAssessmentRelationship(elemMap)
 		doc.CvssV2VulnAssessments = append(doc.CvssV2VulnAssessments, cvss2)
 		if cvss2.SpdxID != "" {
 			doc.CvssV2VulnAssessmentsByID[cvss2.SpdxID] = cvss2
 		}
-	case TypeCvssV3VulnAssessment:
+	case spdx.TypeCvssV3VulnAssessment:
 		cvss3 := r.parser.ParseCvssV3VulnAssessmentRelationship(elemMap)
 		doc.CvssV3VulnAssessments = append(doc.CvssV3VulnAssessments, cvss3)
 		if cvss3.SpdxID != "" {
 			doc.CvssV3VulnAssessmentsByID[cvss3.SpdxID] = cvss3
 		}
-	case TypeCvssV4VulnAssessment:
+	case spdx.TypeCvssV4VulnAssessment:
 		cvss4 := r.parser.ParseCvssV4VulnAssessmentRelationship(elemMap)
 		doc.CvssV4VulnAssessments = append(doc.CvssV4VulnAssessments, cvss4)
 		if cvss4.SpdxID != "" {
 			doc.CvssV4VulnAssessmentsByID[cvss4.SpdxID] = cvss4
 		}
-	case TypeEpssVulnAssessment:
+	case spdx.TypeEpssVulnAssessment:
 		epss := r.parser.ParseEpssVulnAssessmentRelationship(elemMap)
 		doc.EpssVulnAssessments = append(doc.EpssVulnAssessments, epss)
 		if epss.SpdxID != "" {
 			doc.EpssVulnAssessmentsByID[epss.SpdxID] = epss
 		}
-	case TypeSsvcVulnAssessment:
+	case spdx.TypeSsvcVulnAssessment:
 		ssvc := r.parser.ParseSsvcVulnAssessmentRelationship(elemMap)
 		doc.SsvcVulnAssessments = append(doc.SsvcVulnAssessments, ssvc)
 		if ssvc.SpdxID != "" {
 			doc.SsvcVulnAssessmentsByID[ssvc.SpdxID] = ssvc
 		}
-	case TypeExploitCatalogVulnAssessment:
+	case spdx.TypeExploitCatalogVulnAssessment:
 		ec := r.parser.ParseExploitCatalogVulnAssessmentRelationship(elemMap)
 		doc.ExploitCatalogVulnAssessments = append(doc.ExploitCatalogVulnAssessments, ec)
 		if ec.SpdxID != "" {
 			doc.ExploitCatalogVulnAssessmentsByID[ec.SpdxID] = ec
 		}
-	case TypeVexAffectedVulnAssessment:
+	case spdx.TypeVexAffectedVulnAssessment:
 		vexAffected := r.parser.ParseVexAffectedVulnAssessmentRelationship(elemMap)
 		doc.VexAffectedVulnAssessments = append(doc.VexAffectedVulnAssessments, vexAffected)
 		if vexAffected.SpdxID != "" {
 			doc.VexAffectedVulnAssessmentsByID[vexAffected.SpdxID] = vexAffected
 		}
-	case TypeVexFixedVulnAssessment:
+	case spdx.TypeVexFixedVulnAssessment:
 		vexFixed := r.parser.ParseVexFixedVulnAssessmentRelationship(elemMap)
 		doc.VexFixedVulnAssessments = append(doc.VexFixedVulnAssessments, vexFixed)
 		if vexFixed.SpdxID != "" {
 			doc.VexFixedVulnAssessmentsByID[vexFixed.SpdxID] = vexFixed
 		}
-	case TypeVexNotAffectedVulnAssessment:
+	case spdx.TypeVexNotAffectedVulnAssessment:
 		vexNotAffected := r.parser.ParseVexNotAffectedVulnAssessmentRelationship(elemMap)
 		doc.VexNotAffectedVulnAssessments = append(doc.VexNotAffectedVulnAssessments, vexNotAffected)
 		if vexNotAffected.SpdxID != "" {
 			doc.VexNotAffectedVulnAssessmentsByID[vexNotAffected.SpdxID] = vexNotAffected
 		}
-	case TypeVexUnderInvestigationVulnAssessment:
+	case spdx.TypeVexUnderInvestigationVulnAssessment:
 		vexUnderInvestigation := r.parser.ParseVexUnderInvestigationVulnAssessmentRelationship(elemMap)
 		doc.VexUnderInvestigationVulnAssessments = append(doc.VexUnderInvestigationVulnAssessments, vexUnderInvestigation)
 		if vexUnderInvestigation.SpdxID != "" {
@@ -490,23 +525,23 @@ func (r *Reader) handleSecurityElements(doc *Document, elemMap map[string]interf
 	return true
 }
 
-func (r *Reader) handleAiElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleAiElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	spdxID := r.parser.H.GetString(elemMap, "spdxId")
 
 	switch elemType {
-	case TypeAIPackage:
+	case spdx.TypeAIPackage:
 		aiPkg := r.parser.ParseAIPackage(elemMap)
 		doc.AiPackages = append(doc.AiPackages, aiPkg)
 		if spdxID != "" {
 			doc.AiPackagesByID[spdxID] = aiPkg
 		}
-	case TypeEnergyConsumption:
+	case spdx.TypeEnergyConsumption:
 		ec := r.parser.ParseEnergyConsumption(elemMap)
 		doc.EnergyConsumptions = append(doc.EnergyConsumptions, ec)
 		if spdxID != "" {
 			doc.EnergyConsumptionsByID[spdxID] = ec
 		}
-	case TypeEnergyConsumptionDescription:
+	case spdx.TypeEnergyConsumptionDescription:
 		ecd := r.parser.ParseEnergyConsumptionDescription(elemMap)
 		doc.EnergyConsumptionDescriptions = append(doc.EnergyConsumptionDescriptions, ecd)
 		if spdxID != "" {
@@ -518,11 +553,11 @@ func (r *Reader) handleAiElements(doc *Document, elemMap map[string]interface{},
 	return true
 }
 
-func (r *Reader) handleDatasetElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleDatasetElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	spdxID := r.parser.H.GetString(elemMap, "spdxId")
 
 	switch elemType {
-	case TypeDataset: // Note: uses TypeDataset but parses into DatasetPackage
+	case spdx.TypeDataset: // Note: uses spdx.TypeDataset but parses into DatasetPackage
 		datasetPkg := r.parser.ParseDatasetPackage(elemMap)
 		doc.DatasetPackages = append(doc.DatasetPackages, datasetPkg)
 		if spdxID != "" {
@@ -534,11 +569,11 @@ func (r *Reader) handleDatasetElements(doc *Document, elemMap map[string]interfa
 	return true
 }
 
-func (r *Reader) handleBuildElements(doc *Document, elemMap map[string]interface{}, elemType ElementType) bool {
+func (r *Reader) handleBuildElements(doc *Document, elemMap map[string]interface{}, elemType spdx.ElementType) bool {
 	spdxID := r.parser.H.GetString(elemMap, "spdxId")
 
 	switch elemType {
-	case TypeBuild:
+	case spdx.TypeBuild:
 		build := r.parser.ParseBuild(elemMap)
 		doc.Builds = append(doc.Builds, build)
 		if spdxID != "" {
@@ -593,4 +628,128 @@ func (r *Reader) Compact(data []byte, context interface{}) (interface{}, error) 
 	}
 
 	return compacted, nil
+}
+
+// populateElementCreationInfo finds the parsed element with the given spdxID
+// in the Document's typed maps and slices and sets its CreationInfo field.
+func populateElementCreationInfo(doc *Document, spdxID string, ci *spdx.CreationInfo) {
+	// Handle SpdxDocument specially (not in a map or slice)
+	if doc.SpdxDocument != nil && doc.SpdxDocument.SpdxID == spdxID {
+		setCreationInfoOnStruct(doc.SpdxDocument, ci)
+		return
+	}
+
+	docVal := reflect.ValueOf(doc).Elem()
+	docType := docVal.Type()
+
+	// First, search through typed maps (map[string]*T)
+	for i := 0; i < docVal.NumField(); i++ {
+		field := docVal.Field(i)
+		fieldType := docType.Field(i)
+
+		if field.Kind() != reflect.Map {
+			continue
+		}
+		if fieldType.Type.Key().Kind() != reflect.String {
+			continue
+		}
+		valType := fieldType.Type.Elem()
+		if valType.Kind() != reflect.Ptr || valType.Elem().Kind() != reflect.Struct {
+			continue
+		}
+
+		elemVal := field.MapIndex(reflect.ValueOf(spdxID))
+		if !elemVal.IsValid() || elemVal.IsNil() {
+			continue
+		}
+
+		setCreationInfoOnStruct(elemVal.Interface(), ci)
+		return
+	}
+
+	// Second, search through typed slices ([]*T)
+	for i := 0; i < docVal.NumField(); i++ {
+		field := docVal.Field(i)
+		fieldType := docType.Field(i)
+
+		if field.Kind() != reflect.Slice {
+			continue
+		}
+		valType := fieldType.Type.Elem()
+		if valType.Kind() != reflect.Ptr || valType.Elem().Kind() != reflect.Struct {
+			continue
+		}
+
+		for j := 0; j < field.Len(); j++ {
+			elemVal := field.Index(j)
+			if elemVal.IsNil() {
+				continue
+			}
+			if hasSpdxID(elemVal.Interface(), spdxID) {
+				setCreationInfoOnStruct(elemVal.Interface(), ci)
+				return
+			}
+		}
+	}
+}
+
+// hasSpdxID returns true if the given struct (or its embedded structs)
+// has a SpdxID field matching the given value.
+func hasSpdxID(v interface{}, spdxID string) bool {
+	if v == nil {
+		return false
+	}
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return false
+	}
+
+	if f := val.FieldByName("SpdxID"); f.IsValid() {
+		if s, ok := f.Interface().(string); ok {
+			return s == spdxID
+		}
+	}
+	return false
+}
+
+// setCreationInfoOnStruct sets the CreationInfo field on a struct value.
+// It handles embedded anonymous structs (e.g. Package → SoftwareArtifact → Artifact → Element).
+func setCreationInfoOnStruct(v interface{}, ci *spdx.CreationInfo) {
+	if v == nil || ci == nil {
+		return
+	}
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return
+	}
+	findAndSetCreationInfo(val, ci)
+}
+
+// findAndSetCreationInfo recursively searches for a "CreationInfo" field
+// in a struct and its embedded anonymous fields.
+func findAndSetCreationInfo(v reflect.Value, ci *spdx.CreationInfo) {
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	// Try direct field first
+	if f := v.FieldByName("CreationInfo"); f.IsValid() && f.CanSet() {
+		f.Set(reflect.ValueOf(*ci))
+		return
+	}
+
+	// Recurse into embedded anonymous fields
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		if field.Anonymous {
+			findAndSetCreationInfo(v.Field(i), ci)
+		}
+	}
 }

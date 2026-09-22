@@ -141,10 +141,10 @@ type ExternalIdentifier struct {
 
 // ExternalMap A map of Element identifiers that are used within an SpdxDocument but defined external to that SpdxDocument.
 type ExternalMap struct {
-	ExternalSpdxId   string        `json:"externalSpdxId" validate:"required,omitempty,url"`
+	ExternalSpdxId   string            `json:"externalSpdxId" validate:"required,omitempty,url"`
 	VerifiedUsing    []interface{} `json:"verifiedUsing,omitempty"`
-	LocationHint     string        `json:"locationHint,omitempty" validate:"omitempty,url"`
-	DefiningArtifact *Artifact     `json:"definingArtifact,omitempty"`
+	LocationHint     string            `json:"locationHint,omitempty" validate:"omitempty,url"`
+	DefiningArtifact *Artifact         `json:"definingArtifact,omitempty"`
 }
 
 // ExternalRef A reference to a resource outside the scope of SPDX-3.0 content related to an Element.
