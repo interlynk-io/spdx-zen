@@ -474,14 +474,14 @@ func findCreationInfoRecursive(v reflect.Value) *spdx.CreationInfo {
 // Blank nodes are used because CreationInfo has no SpdxID of its own — it is
 // a shared metadata block referenced by multiple elements in the @graph.
 func marshalCreationInfoToBlankNodeMap(ci *spdx.CreationInfo, blankNodeID string) (map[string]interface{}, error) {
-	m, err := marshalStructToBareFieldMap(ci)
+	ciFields, err := marshalStructToBareFieldMap(ci)
 	if err != nil {
 		return nil, err
 	}
-	m["@id"] = blankNodeID
-	m["type"] = "CreationInfo"
-	replaceNestedElementMapsWithStringReferences(m)
-	return m, nil
+	ciFields["@id"] = blankNodeID
+	ciFields["type"] = "CreationInfo"
+	replaceNestedElementMapsWithStringReferences(ciFields)
+	return ciFields, nil
 }
 
 // applyJSONLDFieldPrefixesUsingRegistry renames bare ontology field names to
@@ -497,11 +497,11 @@ func marshalCreationInfoToBlankNodeMap(ci *spdx.CreationInfo, blankNodeID string
 // The registry entries are backed by official SPDX ontology URIs:
 //
 //	https://spdx.org/rdf/3.0.1/terms/Software/downloadLocation → Prefix="software_"
-func applyJSONLDFieldPrefixesUsingRegistry(m map[string]interface{}, elemType spdx.ElementType) {
+func applyJSONLDFieldPrefixesUsingRegistry(fields map[string]interface{}, elemType spdx.ElementType) {
 	for bareField, info := range spdx.JSONLDFieldRegistry[elemType] {
-		if v, exists := m[bareField]; exists {
-			delete(m, bareField)
-			m[info.Prefix+bareField] = v
+		if v, exists := fields[bareField]; exists {
+			delete(fields, bareField)
+			fields[info.Prefix+bareField] = v
 		}
 	}
 }
@@ -521,7 +521,7 @@ func applyJSONLDFieldPrefixesUsingRegistry(m map[string]interface{}, elemType sp
 //
 // The result is one entry in the JSON-LD @graph array.
 func marshalSPDXElementToJSONLDMap(elem interface{}, ciMap map[creationInfoKey]string) (map[string]interface{}, error) {
-	bareFieldLists, err := marshalStructToBareFieldMap(elem)
+	elementFields, err := marshalStructToBareFieldMap(elem)
 	if err != nil {
 		return nil, err
 	}
@@ -530,10 +530,10 @@ func marshalSPDXElementToJSONLDMap(elem interface{}, ciMap map[creationInfoKey]s
 	if !ok {
 		return nil, fmt.Errorf("unknown element type: %T", elem)
 	}
-	bareFieldLists["type"] = jsonLDElementType
+	elementFields["type"] = jsonLDElementType
 
 	// Rename fields to match SPDX JSON-LD prefixed names.
-	applyJSONLDFieldPrefixesUsingRegistry(bareFieldLists, spdx.ElementType(jsonLDElementType))
+	applyJSONLDFieldPrefixesUsingRegistry(elementFields, spdx.ElementType(jsonLDElementType))
 
 	// Replace CreationInfo with blank node reference.
 	if ciMap != nil {
@@ -541,13 +541,13 @@ func marshalSPDXElementToJSONLDMap(elem interface{}, ciMap map[creationInfoKey]s
 		if ci != nil {
 			key := makeCreationInfoKey(ci)
 			if ref, ok := ciMap[key]; ok {
-				bareFieldLists["creationInfo"] = ref
+				elementFields["creationInfo"] = ref
 			}
 		}
 	}
 
-	replaceNestedElementMapsWithStringReferences(bareFieldLists)
-	return bareFieldLists, nil
+	replaceNestedElementMapsWithStringReferences(elementFields)
+	return elementFields, nil
 }
 
 // marshalStructToBareFieldMap converts a Go struct into a map[string]interface{}
@@ -571,11 +571,11 @@ func marshalStructToBareFieldMap(v interface{}) (map[string]interface{}, error) 
 	if err != nil {
 		return nil, fmt.Errorf("marshaling struct: %w", err)
 	}
-	var m map[string]interface{}
-	if err := json.Unmarshal(data, &m); err != nil {
+	var fields map[string]interface{}
+	if err := json.Unmarshal(data, &fields); err != nil {
 		return nil, fmt.Errorf("unmarshaling to map: %w", err)
 	}
-	return m, nil
+	return fields, nil
 }
 
 // replaceNestedElementMapsWithStringReferences recursively walks a map and
@@ -595,12 +595,12 @@ func marshalStructToBareFieldMap(v interface{}) (map[string]interface{}, error) 
 //
 // Maps that do NOT contain "spdxId" (value objects like Hash) are left inline
 // but get their "type" field injected via injectJSONLDTypeIntoValueObjects.
-func replaceNestedElementMapsWithStringReferences(m map[string]interface{}) {
-	for k, v := range m {
+func replaceNestedElementMapsWithStringReferences(elementMap map[string]interface{}) {
+	for k, v := range elementMap {
 		switch val := v.(type) {
 		case map[string]interface{}:
 			if isElementReferenceMap(val) {
-				m[k] = val["spdxId"]
+				elementMap[k] = val["spdxId"]
 			} else {
 				replaceNestedElementMapsWithStringReferences(val)
 				injectJSONLDTypeIntoValueObjects(val)
@@ -626,8 +626,8 @@ func replaceNestedElementMapsWithStringReferences(m map[string]interface{}) {
 // In SPDX 3.0 JSON-LD, any object with "spdxId" is an element that can be
 // referenced by ID. Value objects (Hash, PackageVerificationCode) do NOT have
 // spdxId and remain inline with their fields intact.
-func isElementReferenceMap(m map[string]interface{}) bool {
-	v, ok := m["spdxId"]
+func isElementReferenceMap(obj map[string]interface{}) bool {
+	v, ok := obj["spdxId"]
 	if !ok {
 		return false
 	}
@@ -646,13 +646,13 @@ func isElementReferenceMap(m map[string]interface{}) bool {
 //
 // This is called during reference emission for maps that are NOT element
 // references (no spdxId).
-func injectJSONLDTypeIntoValueObjects(m map[string]interface{}) {
-	if _, hasType := m["type"]; hasType {
+func injectJSONLDTypeIntoValueObjects(valueObj map[string]interface{}) {
+	if _, hasType := valueObj["type"]; hasType {
 		return
 	}
-	if _, ok := m["hashValue"]; ok {
-		m["type"] = "Hash"
-	} else if _, ok := m["packageVerificationCodeValue"]; ok {
-		m["type"] = "PackageVerificationCode"
+	if _, ok := valueObj["hashValue"]; ok {
+		valueObj["type"] = "Hash"
+	} else if _, ok := valueObj["packageVerificationCodeValue"]; ok {
+		valueObj["type"] = "PackageVerificationCode"
 	}
 }
