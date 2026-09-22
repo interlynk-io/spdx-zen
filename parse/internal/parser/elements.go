@@ -787,6 +787,15 @@ func (p *ElementParser) ParseSpdxDocument(elemMap map[string]interface{}) *spdx.
 		}
 	}
 
+	// Parse rootElement — references to top-level elements in the document
+	if reList := p.H.GetSlice(elemMap, "rootElement"); reList != nil {
+		for _, re := range reList {
+			if reStr, ok := re.(string); ok {
+				doc.RootElement = append(doc.RootElement, spdx.Element{SpdxID: reStr})
+			}
+		}
+	}
+
 	// Parse imports
 	doc.Import = []spdx.ExternalMap{}
 	if imps := p.H.GetSlice(elemMap, "import"); imps != nil {
