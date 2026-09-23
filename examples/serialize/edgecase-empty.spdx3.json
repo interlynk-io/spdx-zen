@@ -1,0 +1,24 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationinfo",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.org/tool1"],
+      "created": "2024-01-15T10:00:00Z"
+    },
+    {
+      "spdxId": "https://example.org/doc1",
+      "type": "SpdxDocument",
+      "name": "Empty Document Test",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/tool1",
+      "type": "Tool",
+      "name": "empty-test-tool",
+      "creationInfo": "_:creationinfo"
+    }
+  ]
+}
