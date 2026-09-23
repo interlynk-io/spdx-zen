@@ -4,13 +4,17 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/interlynk-io/spdx-zen.svg)](https://pkg.go.dev/github.com/interlynk-io/spdx-zen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-A high-performance Go library for parsing and manipulating SPDX 3.0.1 JSON-LD documents. SPDX Zen provides a clean, type-safe API for working with Software Bill of Materials (SBOM) data in the SPDX format.
+A high-performance Go library for **parsing, manipulating, and serializing** SPDX 3.0.1 JSON-LD documents. SPDX Zen provides a clean, type-safe API for working with Software Bill of Materials (SBOM) data in the SPDX format.
+
+**Read** SPDX documents → manipulate them in memory → **write** them back out. Round-trip with confidence.
 
 ## Features
 
 - **Full SPDX 3.0.1 Support**: Complete implementation of the SPDX 3.0.1 specification
 - **Type-Safe Models**: Strongly typed Go structures for all SPDX elements
 - **JSON-LD Native**: First-class support for SPDX JSON-LD format
+- **Read & Write**: Parse SPDX documents **and** serialize them back to valid JSON-LD
+- **Round-Trip Safe**: What you parse is what you get back — references, prefixes, blank nodes, and all
 - **High Performance**: Optimized parsing with O(1) element lookups via indexing
 - **Rich Query API**: Intuitive methods for traversing relationships, dependencies, and licenses
 - **Profile Support**: Supports all SPDX profiles (Core, Software, Security, Licensing, AI, Dataset, Build)
@@ -52,6 +56,48 @@ func main() {
     fmt.Printf("Packages: %d\n", len(doc.Packages))
     fmt.Printf("Files: %d\n", len(doc.Files))
 }
+```
+
+### Writing an SPDX Document
+
+```go
+package main
+
+import (
+    "log"
+    
+    "github.com/interlynk-io/spdx-zen/parse"
+    "github.com/interlynk-io/spdx-zen/serialize"
+)
+
+func main() {
+    // Read an SPDX file
+    reader := parse.NewReader()
+    doc, err := reader.ReadFile("input.spdx.json")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Modify the document (e.g., add a relationship, update metadata)
+    // ... your logic here ...
+    
+    // Write it back out as JSON-LD
+    writer := serialize.NewWriter(
+        serialize.WithIndent("  "), // pretty-print with 2-space indent
+    )
+    
+    if err := writer.WriteFile(doc, "output.spdx.json"); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+**Round-trip in three lines:**
+
+```go
+doc, _ := parse.NewReader().ReadFile("in.spdx.json")
+// ... mutate doc ...
+serialize.NewWriter().WriteFile(doc, "out.spdx.json")
 ```
 
 ### Working with Packages
@@ -120,6 +166,33 @@ for _, ann := range annotations {
 }
 ```
 
+
+## Serialization
+
+SPDX Zen now supports **writing** SPDX 3.0 JSON-LD documents, not just reading them.
+
+### What Works
+
+- **Round-trip parsing**: Read an SPDX file, modify it, write it back — the output is valid JSON-LD
+- **Automatic field prefixing**: Core fields stay bare (`name`, `spdxId`), profile fields get their namespace prefix (`software_downloadLocation`, `security_publishedTime`)
+- **CreationInfo deduplication**: Identical `CreationInfo` blocks are extracted into shared blank nodes (`_:creationinfo`)
+- **Reference emission**: Nested element structs become string references in JSON-LD
+- **Value object types**: `Hash` and `PackageVerificationCode` get their `"type"` injected automatically
+- **All profiles**: Software, Security, Licensing, AI, Dataset, Build — all serialize correctly
+
+### Current Limitations
+
+- **Semantic field ordering**: Fields appear in Go struct order, not a logical order (`spdxId` → `type` → `name`). Valid JSON-LD doesn't require ordering, but human readers may prefer it.
+- **Validation on write**: The serializer does not yet validate that every `SpdxID` referenced in relationships actually exists in the document. Invalid documents may produce invalid output.
+- **Custom `@context`**: Only the standard SPDX context URL is emitted. Custom or extended contexts are not yet supported.
+
+### Learn More
+
+- **[Serialization Guide](docs/serialization-guide.md)** — Complete user guide with examples, limitations, and troubleshooting
+- **[Serialization Concepts](docs/serialization-concepts.md)** — Bottom-up design deep dive: from JSON-LD output patterns to how the serializer bridges Go structs
+- **[Example: Round-trip Demo](examples/serialize/)** — Working code + 7 edge-case SPDX files to test against
+
+---
 
 ## Advanced Usage
 
@@ -228,8 +301,12 @@ spdx-zen/
 │   ├── reader.go       # Main reader implementation
 │   ├── document.go     # Document type with query methods
 │   └── internal/       # Internal parsing logic
+├── serialize/          # JSON-LD serialization (write SPDX back out)
+│   ├── writer.go       # Main writer implementation
+│   └── types.go        # Type registry for JSON-LD "type" fields
 └── examples/           # Example applications
-    └── spdx-lister/    # Complete example showing usage
+    ├── spdx-lister/    # Parsing example
+    └── serialize/      # Serialization round-trip demo + edge cases
 ```
 
 ## Performance
