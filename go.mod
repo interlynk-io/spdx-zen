@@ -2,7 +2,7 @@ module github.com/interlynk-io/spdx-zen
 
 go 1.25.5
 
-require github.com/piprate/json-gold v0.8.0
+require github.com/piprate/json-gold v0.9.1
 
 require (
 	github.com/cayleygraph/quad v1.3.0 // indirect
