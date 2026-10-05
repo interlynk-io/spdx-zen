@@ -1,0 +1,50 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationinfo",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.org/org1"],
+      "created": "2024-01-15T10:00:00Z"
+    },
+    {
+      "@id": "_:creationinfo2",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.org/org2"],
+      "created": "2024-01-16T10:00:00Z"
+    },
+    {
+      "spdxId": "https://example.org/doc1",
+      "type": "SpdxDocument",
+      "name": "Multi CreationInfo Test",
+      "creationInfo": "_:creationinfo",
+      "rootElement": ["https://example.org/pkg1"]
+    },
+    {
+      "spdxId": "https://example.org/org1",
+      "type": "Organization",
+      "name": "Org One",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/org2",
+      "type": "Organization",
+      "name": "Org Two",
+      "creationInfo": "_:creationinfo2"
+    },
+    {
+      "spdxId": "https://example.org/pkg1",
+      "type": "software_Package",
+      "name": "package-one",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/pkg2",
+      "type": "software_Package",
+      "name": "package-two",
+      "creationInfo": "_:creationinfo2"
+    }
+  ]
+}

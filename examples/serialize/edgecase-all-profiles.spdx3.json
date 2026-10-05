@@ -1,0 +1,94 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationinfo",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.org/tool1"],
+      "created": "2024-01-15T10:00:00Z"
+    },
+    {
+      "spdxId": "https://example.org/doc1",
+      "type": "SpdxDocument",
+      "name": "Multi-Profile Coverage Test",
+      "creationInfo": "_:creationinfo",
+      "rootElement": ["https://example.org/pkg1"],
+      "profileConformance": ["core", "software", "security", "licensing", "ai"]
+    },
+    {
+      "spdxId": "https://example.org/tool1",
+      "type": "Tool",
+      "name": "multi-profile-tool",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/pkg1",
+      "type": "software_Package",
+      "name": "profiled-package",
+      "software_primaryPurpose": "install",
+      "software_additionalPurpose": ["container", "firmware"],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/file1",
+      "type": "software_Snippet",
+      "name": "code-snippet",
+      "byteRange": {
+        "type": "PositiveIntegerRange",
+        "beginIntegerRange": 100,
+        "endIntegerRange": 500
+      },
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/vuln1",
+      "type": "security_Vulnerability",
+      "security_vulnerabilityId": "CVE-2024-1234",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/rel1",
+      "type": "Relationship",
+      "relationshipType": "hasVulnerability",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/vuln1"],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/rel2",
+      "type": "Relationship",
+      "relationshipType": "hasDeclaredLicense",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/mit"],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/mit",
+      "type": "ListedLicense",
+      "name": "MIT",
+      "simplelicensing_LicenseText": "MIT License text here...",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/agent1",
+      "type": "Agent",
+      "name": "AI Builder Agent",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/hash1",
+      "type": "Hash",
+      "algorithm": "SHA256",
+      "hashValue": "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+    },
+    {
+      "spdxId": "https://example.org/rel3",
+      "type": "Relationship",
+      "relationshipType": "verifiedUsing",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/hash1"],
+      "creationInfo": "_:creationinfo"
+    }
+  ]
+}

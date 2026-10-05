@@ -1,0 +1,76 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationinfo",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.org/tool1"],
+      "created": "2024-01-15T10:00:00Z"
+    },
+    {
+      "spdxId": "https://example.org/doc1",
+      "type": "SpdxDocument",
+      "name": "Complex Licenses Test",
+      "creationInfo": "_:creationinfo",
+      "rootElement": ["https://example.org/pkg1"],
+      "profileConformance": ["core", "software", "licensing"]
+    },
+    {
+      "spdxId": "https://example.org/tool1",
+      "type": "Tool",
+      "name": "license-tool",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/pkg1",
+      "type": "software_Package",
+      "name": "licensed-package",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/mit",
+      "type": "ListedLicense",
+      "name": "MIT",
+      "simplelicensing_LicenseText": "Permission is hereby granted...",
+      "isOsiApproved": true,
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/apache2",
+      "type": "ListedLicense",
+      "name": "Apache-2.0",
+      "simplelicensing_LicenseText": "Apache License Version 2.0...",
+      "isOsiApproved": true,
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/expr1",
+      "type": "simplelicensing_LicenseExpression",
+      "simplelicensing_Expression": "MIT AND Apache-2.0",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/conj1",
+      "type": "ConjunctiveLicenseSet",
+      "member": ["https://example.org/mit", "https://example.org/apache2"],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/rel1",
+      "type": "Relationship",
+      "relationshipType": "hasConcludedLicense",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/expr1"],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/rel2",
+      "type": "Relationship",
+      "relationshipType": "hasDeclaredLicense",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/conj1"],
+      "creationInfo": "_:creationinfo"
+    }
+  ]
+}

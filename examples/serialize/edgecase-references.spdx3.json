@@ -1,0 +1,81 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationinfo",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.org/tool1"],
+      "created": "2024-01-15T10:00:00Z"
+    },
+    {
+      "spdxId": "https://example.org/doc1",
+      "type": "SpdxDocument",
+      "name": "Multiple Reference Types Test",
+      "creationInfo": "_:creationinfo",
+      "rootElement": ["https://example.org/pkg1"],
+      "profileConformance": ["core", "software"]
+    },
+    {
+      "spdxId": "https://example.org/tool1",
+      "type": "Tool",
+      "name": "multi-ref-tool",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/org1",
+      "type": "Organization",
+      "name": "Supplier Org",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/person1",
+      "type": "Person",
+      "name": "Author Person",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/pkg1",
+      "type": "software_Package",
+      "name": "referenced-package",
+      "software_packageVersion": "2.0.0",
+      "originatedBy": ["https://example.org/person1"],
+      "suppliedBy": "https://example.org/org1",
+      "creationInfo": "_:creationinfo",
+      "verifiedUsing": [{
+        "type": "Hash",
+        "algorithm": "sha256",
+        "hashValue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }, {
+        "type": "Hash",
+        "algorithm": "sha1",
+        "hashValue": "a6f47dbc7e4615058490055172fe0065c55f8fc5"
+      }]
+    },
+    {
+      "spdxId": "https://example.org/rel1",
+      "type": "Relationship",
+      "relationshipType": "dependsOn",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/org1"],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/ann1",
+      "type": "Annotation",
+      "annotationType": "review",
+      "statement": "This package has been reviewed.",
+      "subject": "https://example.org/pkg1",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "spdxId": "https://example.org/lifecycle1",
+      "type": "LifecycleScopedRelationship",
+      "relationshipType": "testedBy",
+      "from": "https://example.org/pkg1",
+      "to": ["https://example.org/tool1"],
+      "scope": "build",
+      "creationInfo": "_:creationinfo"
+    }
+  ]
+}
