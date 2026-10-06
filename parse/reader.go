@@ -239,10 +239,87 @@ func (r *Reader) parseContext(ctx interface{}) []string {
 	return contexts
 }
 
+// normalizeElementType maps bare/short SPDX 3.0 JSON-LD type names to their
+// canonical profile-prefixed forms. SPDX 3.0 allows multiple representations
+// of the same type (e.g. "SimpleLicensingText" vs "simplelicensing_SimpleLicensingText"),
+// but the parser only recognizes the canonical constant values. This function
+// bridges the gap so real-world files that use bare type names are handled.
+func normalizeElementType(typeStr string) spdx.ElementType {
+	// Already canonical — return as-is
+	et := spdx.ElementType(typeStr)
+	if et.IsCore() || et.IsSoftware() || et.IsLicensing() || et.IsSecurity() {
+		return et
+	}
+
+	// Map bare type names to canonical profile-prefixed forms.
+	// The map covers types that are commonly emitted without prefixes
+	// by SPDX 3.0 tools (e.g. "SimpleLicensingText" instead of
+	// "simplelicensing_SimpleLicensingText").
+	switch typeStr {
+	// SimpleLicensing profile
+	case "SimpleLicensingText":
+		return spdx.TypeSimpleLicensingText
+	case "LicenseExpression":
+		return spdx.TypeSimpleLicensingExpression
+
+	// ExpandedLicensing profile
+	case "OrLaterOperator":
+		return spdx.TypeOrLaterOperator
+	case "ListedLicenseException":
+		return spdx.TypeListedLicenseException
+
+	// Security profile
+	case "Vulnerability":
+		return spdx.TypeVulnerability
+	case "VulnAssessmentRelationship":
+		return spdx.TypeVulnAssessmentRelationship
+	case "CvssV2VulnAssessment":
+		return spdx.TypeCvssV2VulnAssessment
+	case "CvssV3VulnAssessment":
+		return spdx.TypeCvssV3VulnAssessment
+	case "CvssV4VulnAssessment":
+		return spdx.TypeCvssV4VulnAssessment
+	case "EpssVulnAssessment":
+		return spdx.TypeEpssVulnAssessment
+	case "SsvcVulnAssessment":
+		return spdx.TypeSsvcVulnAssessment
+	case "VexVulnAssessment":
+		return spdx.TypeVexVulnAssessment
+	case "VexAffectedVulnAssessment":
+		return spdx.TypeVexAffectedVulnAssessment
+	case "VexFixedVulnAssessment":
+		return spdx.TypeVexFixedVulnAssessment
+	case "VexNotAffectedVulnAssessment":
+		return spdx.TypeVexNotAffectedVulnAssessment
+	case "VexUnderInvestigationVulnAssessment":
+		return spdx.TypeVexUnderInvestigationVulnAssessment
+	case "ExploitCatalogVulnAssessment":
+		return spdx.TypeExploitCatalogVulnAssessment
+
+	// AI profile
+	case "AIPackage":
+		return spdx.TypeAIPackage
+	case "EnergyConsumption":
+		return spdx.TypeEnergyConsumption
+	case "EnergyConsumptionDescription":
+		return spdx.TypeEnergyConsumptionDescription
+
+	// Dataset profile
+	case "Dataset":
+		return spdx.TypeDataset
+
+	// Build profile
+	case "Build":
+		return spdx.TypeBuild
+	}
+
+	return et
+}
+
 // getElementType extracts the element type from a map.
 func (r *Reader) getElementType(elemMap map[string]interface{}) spdx.ElementType {
 	if typeVal, ok := elemMap["type"].(string); ok {
-		return spdx.ElementType(typeVal)
+		return normalizeElementType(typeVal)
 	}
 	return ""
 }
