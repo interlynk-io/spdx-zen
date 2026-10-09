@@ -292,7 +292,7 @@ type IndividualLicensingInfo struct {
 // License is an abstract type and should not be instantiated directly.
 type License struct {
 	ExtendableLicense
-	LicenseText             string   `json:"licenseText" validate:"required"`
+	LicenseText             string   `json:"licenseText,omitempty" validate:"required"`
 	IsDeprecatedLicenseId   bool     `json:"isDeprecatedLicenseId,omitempty"`
 	IsFsfLibre              bool     `json:"isFsfLibre,omitempty"`
 	IsOsiApproved           bool     `json:"isOsiApproved,omitempty"`
@@ -470,7 +470,7 @@ type LicenseExpression struct {
 // SimpleLicensingText A license or addition that is not listed on the SPDX License List.
 type SimpleLicensingText struct {
 	Element
-	LicenseText string `json:"licenseText" validate:"required"`
+	LicenseText string `json:"licenseText,omitempty" validate:"required"`
 }
 
 // ContentIdentifier A canonical, unique, immutable identifier
