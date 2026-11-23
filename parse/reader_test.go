@@ -489,7 +489,7 @@ func TestReader_SbomLifecycle(t *testing.T) {
 				"type": "software_Sbom",
 				"spdxId": "SPDXRef-SBOM",
 				"name": "My Application SBOM",
-				"sbomType": ["build", "analyzed"]
+				"software_sbomType": ["build", "analyzed"]
 			}
 		]
 	}`
