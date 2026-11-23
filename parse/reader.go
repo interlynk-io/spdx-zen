@@ -208,6 +208,19 @@ func (r *Reader) parse(rawDoc interface{}) (*Document, error) {
 		}
 	}
 
+	// Third pass: resolve DataLicense references on SpdxDocument.
+	// SPDX 3.0 stores dataLicense as a reference (IRI string) to an AnyLicenseInfo
+	// element in the graph. ParseSpdxDocument stores the bare SpdxID; here we
+	// look up the actual parsed license element and point DataLicense to it.
+	if doc.SpdxDocument != nil && doc.SpdxDocument.DataLicense != nil {
+		dlRef := doc.SpdxDocument.DataLicense.SpdxID
+		if dlRef != "" {
+			if ali := doc.GetAnyLicenseInfoByID(dlRef); ali != nil {
+				doc.SpdxDocument.DataLicense = ali
+			}
+		}
+	}
+
 	// Build relationship indexes for O(1) lookups
 	for _, rel := range doc.Relationships {
 		fromID := rel.From.GetSpdxID()

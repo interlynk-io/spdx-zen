@@ -489,7 +489,7 @@ func TestReader_SbomLifecycle(t *testing.T) {
 				"type": "software_Sbom",
 				"spdxId": "SPDXRef-SBOM",
 				"name": "My Application SBOM",
-				"sbomType": ["build", "analyzed"]
+				"software_sbomType": ["build", "analyzed"]
 			}
 		]
 	}`
@@ -615,4 +615,43 @@ func containsStringHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestReader_DataLicenseResolution(t *testing.T) {
+	docJSON := `{
+		"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+		"@graph": [
+			{"@id":"_:creation","type":"CreationInfo","specVersion":"3.0.1","created":"2026-01-01T00:00:00Z","createdBy":["https://example.org/org"]},
+			{"spdxId":"https://example.org/org","type":"Organization","creationInfo":"_:creation","name":"Example Organization"},
+			{"spdxId":"https://example.org/document","type":"SpdxDocument","creationInfo":"_:creation","name":"Example document","element":["https://example.org/product","https://example.org/cc0"],"rootElement":["https://example.org/product"],"dataLicense":"https://example.org/cc0"},
+			{"spdxId":"https://example.org/product","type":"software_Package","creationInfo":"_:creation","name":"Example product","software_packageVersion":"1.0.0"},
+			{"spdxId":"https://example.org/cc0","type":"simplelicensing_LicenseExpression","creationInfo":"_:creation","simplelicensing_licenseExpression":"CC0-1.0"}
+		]
+	}`
+
+	reader := parse.NewReader()
+	doc, err := reader.Read([]byte(docJSON))
+	if err != nil {
+		t.Fatalf("failed to parse document: %v", err)
+	}
+
+	if doc.SpdxDocument == nil {
+		t.Fatal("expected SpdxDocument, got nil")
+	}
+
+	if doc.SpdxDocument.DataLicense == nil {
+		t.Fatal("expected DataLicense resolved, got nil")
+	}
+
+	if doc.SpdxDocument.DataLicense.SpdxID != "https://example.org/cc0" {
+		t.Errorf("DataLicense.SpdxID = %q, want %q", doc.SpdxDocument.DataLicense.SpdxID, "https://example.org/cc0")
+	}
+
+	le := doc.LicenseExpressionsByID["https://example.org/cc0"]
+	if le == nil {
+		t.Fatal("expected LicenseExpression by ID, got nil")
+	}
+	if le.LicenseExpression != "CC0-1.0" {
+		t.Errorf("LicenseExpression = %q, want %q", le.LicenseExpression, "CC0-1.0")
+	}
 }
